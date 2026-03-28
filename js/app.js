@@ -19,6 +19,89 @@ let routesData = [];
 let stopTimesData = [];
 let tripsData = [];
 
+const GTFS_URL = 'https://busmaps.ru/static/gtfs/moscow-gtfs.zip';
+
+const DB_NAME = 'BusCatcherDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'gtfs';
+const FILES_TO_STORE = ['stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt'];
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+    });
+}
+
+async function hasGTFS() {
+    try {
+        const db = await openDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.get('stops.txt');
+            request.onsuccess = () => resolve(!!request.result);
+            request.onerror = () => resolve(false);
+        });
+    } catch (e) {
+        return false;
+    }
+}
+
+async function saveGTFSFile(filename, content) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.put(content, filename);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function loadGTFSFile(filename) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(filename);
+        request.onsuccess = () => resolve(request.result || '');
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function downloadAndExtractGTFS(onProgress) {
+    onProgress('Скачивание GTFS данных (287 MB)...');
+    
+    const response = await fetch(GTFS_URL);
+    if (!response.ok) {
+        throw new Error(`Failed to download GTFS: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    onProgress('Распаковка архива...');
+    
+    const zip = await JSZip.loadAsync(blob);
+    
+    const total = FILES_TO_STORE.length;
+    for (let i = 0; i < FILES_TO_STORE.length; i++) {
+        const filename = FILES_TO_STORE[i];
+        const file = zip.file(filename);
+        if (file) {
+            const content = await file.async('string');
+            await saveGTFSFile(filename, content);
+            onProgress(`Сохранено ${filename} (${i + 1}/${total})`);
+        }
+    }
+}
+
 async function init() {
     map = L.map('map').setView(Moscow_CENTER, 11);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -36,21 +119,31 @@ async function init() {
 }
 
 async function loadGTFS() {
-    showLoading('Загрузка данных...');
+    loadingEl = showLoading('Проверка данных...');
     
     try {
-        const [stopsRes, routesRes] = await Promise.all([
-            fetch('data/gtfs/stops.txt'),
-            fetch('data/gtfs/routes.txt')
+        const hasData = await hasGTFS();
+        
+        if (!hasData) {
+            await downloadAndExtractGTFS((progressText) => {
+                updateProgressText(progressText);
+            });
+        } else {
+            updateProgressText('Загрузка данных из кэша...');
+        }
+        
+        const [stopsText, routesText] = await Promise.all([
+            loadGTFSFile('stops.txt'),
+            loadGTFSFile('routes.txt')
         ]);
 
-        stopsData = await parseCSV(await stopsRes.text());
-        routesData = await parseCSV(await routesRes.text());
+        stopsData = parseCSV(stopsText);
+        routesData = parseCSV(routesText);
 
         renderStops();
     } catch (e) {
         console.error('Error loading GTFS:', e);
-        alert('Ошибка загрузки данных');
+        alert('Ошибка загрузки данных: ' + e.message);
     }
     
     hideLoading();
@@ -60,27 +153,17 @@ async function loadSchedule() {
     if (stopTimesData.length > 0) return;
     
     try {
-        updateProgressText('Загрузка stop_times.txt...');
-        const stopTimesRes = await fetch('data/gtfs/stop_times.txt');
+        updateProgressText('Загрузка stop_times.txt из кэша...');
+        const stopTimesText = await loadGTFSFile('stop_times.txt');
         
-        if (!stopTimesRes.ok) {
-            throw new Error(`HTTP error! status: ${stopTimesRes.status}`);
-        }
-        
-        const stopTimesText = await stopTimesRes.text();
         updateProgressText('Обработка stop_times.txt...');
         stopTimesData = await parseCSVWithProgress(stopTimesText, (percent) => {
             updateProgressText(`Обработка stop_times.txt... ${percent}%`);
         });
         
-        updateProgressText('Загрузка trips.txt...');
-        const tripsRes = await fetch('data/gtfs/trips.txt');
+        updateProgressText('Загрузка trips.txt из кэша...');
+        const tripsText = await loadGTFSFile('trips.txt');
         
-        if (!tripsRes.ok) {
-            throw new Error(`HTTP error! status: ${tripsRes.status}`);
-        }
-        
-        const tripsText = await tripsRes.text();
         updateProgressText('Обработка trips.txt...');
         tripsData = await parseCSVWithProgress(tripsText, (percent) => {
             updateProgressText(`Обработка trips.txt... ${percent}%`);

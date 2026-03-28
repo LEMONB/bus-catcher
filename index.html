@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BusCatcher</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="map"></div>
+        <div id="panel">
+            <div id="setup-mode">
+                <div class="step" id="step-1">
+                    <p>Кликните на <b>остановку</b> отправления 🚌</p>
+                </div>
+                <div class="step hidden" id="step-2">
+                    <p>Кликните на <b>остановку</b> назначения 🏁</p>
+                </div>
+                <div class="step hidden" id="step-3">
+                    <p>Кликните на карте: <b>откуда выходите</b> 🏠</p>
+                </div>
+                <div id="routes-list" class="hidden">
+                    <h3>Автобусы:</h3>
+                    <div id="routes-container"></div>
+                </div>
+                <button id="reset-btn" class="btn-secondary">Сбросить</button>
+            </div>
+        </div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/app.js?v=4"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch((err) => {
+                console.log('SW registration failed:', err);
+            });
+        }
+    </script>
+</body>
+</html>

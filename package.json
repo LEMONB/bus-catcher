@@ -1,0 +1,18 @@
+{
+  "name": "buscatcher",
+  "version": "1.0.0",
+  "description": "Bus arrival time checker for Moscow",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "serve": "npx http-server -p 3000 -c-1",
+    "download-gtfs": "node scripts/download-gtfs.js"
+  },
+  "keywords": ["bus", "moscow", "gtfs"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}

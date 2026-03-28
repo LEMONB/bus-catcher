@@ -1,0 +1,298 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app {
+    display: flex;
+    height: 100vh;
+}
+
+#map {
+    flex: 1;
+    height: 100%;
+}
+
+#panel {
+    width: 350px;
+    background: #fff;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: #333;
+}
+
+h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: #555;
+}
+
+p {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 16px;
+}
+
+#routes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 200px;
+}
+
+#routes-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.route-option {
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.route-option:hover {
+    border-color: #4CAF50;
+    background: #f5f5f5;
+}
+
+.route-option.selected {
+    border-color: #4CAF50;
+    background: #e8f5e9;
+}
+
+.route-number {
+    font-weight: bold;
+    font-size: 18px;
+    color: #333;
+}
+
+.route-name {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.btn-secondary {
+    padding: 10px 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f5f5f5;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    margin-top: auto;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+#bus-info {
+    flex: 1;
+}
+
+.bus-item {
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.bus-item:hover {
+    background: #e8e8e8;
+    transform: scale(1.02);
+}
+
+.bus-walk {
+    display: block;
+    font-size: 12px;
+    color: #888;
+    margin: 4px 0;
+}
+
+.leaflet-container {
+    cursor: crosshair !important;
+}
+
+.leaflet-marker-icon {
+    cursor: pointer !important;
+}
+
+circle {
+    cursor: pointer !important;
+}
+
+circle:hover {
+    fill-color: #FF5722 !important;
+    r: 8 !important;
+}
+
+.step {
+    margin-bottom: 16px;
+}
+
+.step p {
+    padding: 10px;
+    background: #e3f2fd;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.step p b {
+    color: #1976D2;
+}
+
+.bus-number {
+    display: block;
+    font-size: 32px;
+    font-weight: bold;
+    color: #2196F3;
+    margin-bottom: 8px;
+}
+
+.bus-time {
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.bus-status {
+    display: block;
+    font-size: 16px;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+
+.bus-status.success {
+    background: #4CAF50;
+    color: white;
+}
+
+.bus-status.warning {
+    background: #FF9800;
+    color: white;
+}
+
+.bus-status.danger {
+    background: #f44336;
+    color: white;
+}
+
+.bus-destination {
+    display: block;
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+}
+
+#stops-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.stop-option {
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stop-option:hover {
+    border-color: #4CAF50;
+    background: #f5f5f5;
+}
+
+.stop-option.selected {
+    border-color: #4CAF50;
+    background: #e8f5e9;
+}
+
+.stop-name {
+    font-size: 14px;
+    color: #333;
+}
+
+.stop-distance {
+    font-size: 12px;
+    color: #666;
+    background: #eee;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+#route-name {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+#edit-btn {
+    width: 100%;
+}
+
+#setup-mode {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#view-mode {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (max-width: 768px) {
+    #app {
+        flex-direction: column;
+    }
+    
+    #panel {
+        width: 100%;
+        height: 40%;
+    }
+    
+    #map {
+        height: 60%;
+    }
+}

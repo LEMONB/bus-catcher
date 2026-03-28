@@ -175,6 +175,8 @@ function renderStops() {
     if (stopsLayer) map.removeLayer(stopsLayer);
     stopsLayer = L.layerGroup().addTo(map);
     
+    let activeTooltip = null;
+    
     stopsData.forEach(stop => {
         const lat = parseFloat(stop.stop_lat);
         const lon = parseFloat(stop.stop_lon);
@@ -187,6 +189,27 @@ function renderStops() {
                 weight: 1,
                 fillOpacity: 0.5
             });
+            
+            marker.on('mouseover', function(e) {
+                if (activeTooltip) {
+                    activeTooltip.remove();
+                }
+                const tooltip = document.createElement('div');
+                tooltip.className = 'stop-tooltip';
+                tooltip.textContent = stop.stop_name;
+                tooltip.style.left = (e.containerPoint.x + 10) + 'px';
+                tooltip.style.top = (e.containerPoint.y - 10) + 'px';
+                document.body.appendChild(tooltip);
+                activeTooltip = tooltip;
+            });
+            
+            marker.on('mouseout', function() {
+                if (activeTooltip) {
+                    activeTooltip.remove();
+                    activeTooltip = null;
+                }
+            });
+            
             stopsLayer.addLayer(marker);
         }
     });
@@ -334,7 +357,6 @@ function updateUIForStep(step) {
         if (routesList) routesList.classList.add('hidden');
     } else if (step === 3) {
         if (step1) step1.classList.add('hidden');
-        if (step2) step1.classList.add('hidden');
         if (step2) step2.classList.add('hidden');
         if (step3) step3.classList.remove('hidden');
         if (routesList) routesList.classList.add('hidden');
@@ -354,48 +376,59 @@ function findAndDisplayBuses() {
     const now = new Date();
     const currentTime = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
     
-    // Find all trips that go from stopA to stopB (correct direction)
-    const buses = [];
-    const seenRoutes = new Set();
-    
     const stopATripIds = stopTripIdsCache[stopA.stop_id] || new Set();
     
+    const tripsByRoute = {};
     for (const tripId of stopATripIds) {
         const trip = tripToRouteCache[tripId];
         if (!trip) continue;
         
-        // Skip if already processed this route
-        if (seenRoutes.has(trip.route_id)) continue;
+        if (!tripsByRoute[trip.route_id]) {
+            tripsByRoute[trip.route_id] = [];
+        }
+        tripsByRoute[trip.route_id].push(tripId);
+    }
+    
+    const buses = [];
+    
+    for (const routeId in tripsByRoute) {
+        const tripIds = tripsByRoute[routeId];
+        let bestTrip = null;
+        let bestWaitTime = Infinity;
         
-        const tripStops = tripStopTimesCache[tripId];
-        if (!tripStops) continue;
-        
-        const idxA = tripStops.findIndex(st => st.stop_id === stopA.stop_id);
-        const idxB = tripStops.findIndex(st => st.stop_id === stopB.stop_id);
-        
-        // Must have both stops and A before B
-        if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
-            seenRoutes.add(trip.route_id);
+        for (const tripId of tripIds) {
+            const tripStops = tripStopTimesCache[tripId];
+            if (!tripStops) continue;
             
-            const departureTime = tripStops[idxA].arrival_time;
-            const departureHour = parseInt(departureTime.split(':')[0]);
-            let departureSecs = departureHour * 3600 +
-                               parseInt(departureTime.split(':')[1]) * 60 +
-                               parseInt(departureTime.split(':')[2]);
+            const idxA = tripStops.findIndex(st => st.stop_id === stopA.stop_id);
+            const idxB = tripStops.findIndex(st => st.stop_id === stopB.stop_id);
             
-            // Calculate wait time - if bus already passed today, show tomorrow
-            let waitTimeMinutes;
-            if (departureSecs > currentTime) {
-                // Bus comes today
-                waitTimeMinutes = Math.floor((departureSecs - currentTime) / 60);
-            } else {
-                // Bus comes tomorrow
-                waitTimeMinutes = Math.floor(((24 * 3600 - currentTime) + departureSecs) / 60);
+            if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
+                const departureTime = tripStops[idxA].arrival_time;
+                const [hours, minutes, seconds] = departureTime.split(':').map(Number);
+                let departureSecs = hours * 3600 + minutes * 60 + seconds;
+                
+                let waitTimeSecs;
+                if (departureSecs > currentTime) {
+                    waitTimeSecs = departureSecs - currentTime;
+                } else {
+                    waitTimeSecs = (24 * 3600 - currentTime) + departureSecs;
+                }
+                
+                if (waitTimeSecs < bestWaitTime) {
+                    bestWaitTime = waitTimeSecs;
+                    bestTrip = { tripId, tripStops, departureSecs };
+                }
             }
+        }
+        
+        if (bestTrip) {
             const walkTimeMinutes = getWalkTime(stopA, homePoint);
+            const waitTimeMinutes = Math.floor(bestWaitTime / 60);
             const canMakeIt = waitTimeMinutes > walkTimeMinutes;
             
-            const route = routesData.find(r => r.route_id === trip.route_id);
+            const trip = tripToRouteCache[bestTrip.tripId];
+            const route = routesData.find(r => r.route_id === routeId);
             
             buses.push({
                 route,
@@ -404,8 +437,8 @@ function findAndDisplayBuses() {
                 canMakeIt,
                 homeStop: stopA,
                 destStop: stopB,
-                tripId: tripId,
-                allStopTimes: tripStops
+                tripId: bestTrip.tripId,
+                allStopTimes: bestTrip.tripStops
             });
         }
     }
@@ -454,54 +487,6 @@ function renderBuses(buses) {
         `;
         container.appendChild(div);
     });
-}
-
-// Keep old function for compatibility
-function selectHome(lat, lon) {
-    homePoint = { lat, lon };
-    
-    if (homeMarker) map.removeLayer(homeMarker);
-    homeMarker = L.marker([lat, lon], {
-        icon: L.divIcon({
-            className: 'home-marker',
-            html: '🏠',
-            iconSize: [30, 30]
-        })
-    }).addTo(map);
-    homeMarker.bindPopup('Дом').openPopup();
-    
-    document.getElementById('step-home').classList.add('hidden');
-    document.getElementById('step-destination').classList.remove('hidden');
-    
-    updateURL();
-}
-
-async function selectDestination(lat, lon) {
-    destinationPoint = { lat, lon };
-    
-    if (destinationMarker) map.removeLayer(destinationMarker);
-    destinationMarker = L.marker([lat, lon], {
-        icon: L.divIcon({
-            className: 'dest-marker',
-            html: '🎯',
-            iconSize: [30, 30]
-        })
-    }).addTo(map);
-    destinationMarker.bindPopup('Назначение').openPopup();
-    
-    document.getElementById('step-destination').classList.add('hidden');
-    document.getElementById('routes-list').classList.remove('hidden');
-    
-    loadingEl = showLoading('Загрузка расписания...');
-    await loadSchedule();
-    loadingEl.innerHTML = '<div>Поиск маршрутов...</div>';
-    
-    const routes = findBestRoutes();
-    renderRoutes(routes);
-    
-    hideLoading();
-    loadingEl = null;
-    updateURL();
 }
 
 let routeTripIdsCache = null;
@@ -553,120 +538,6 @@ function buildCaches() {
         tripToRoute: Object.keys(tripToRouteCache).length,
         tripStopTimes: Object.keys(tripStopTimesCache).length
     });
-}
-
-function findBestRoutes() {
-    buildCaches();
-    
-    const homeStops = findNearestStops(homePoint.lat, homePoint.lon, 1);
-    const destStops = findNearestStops(destinationPoint.lat, destinationPoint.lon, 1);
-    
-    console.log('Home point:', homePoint);
-    console.log('Dest point:', destinationPoint);
-    console.log('Home stops:', homeStops.map(s => ({ id: s.stop_id, name: s.stop_name })));
-    console.log('Dest stops:', destStops.map(s => ({ id: s.stop_id, name: s.stop_name })));
-    
-    const now = new Date();
-    const currentTime = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    console.log('Current time (seconds):', currentTime);
-    
-    const options = [];
-    const homeStopIds = new Set(homeStops.map(s => s.stop_id));
-    const destStopIds = new Set(destStops.map(s => s.stop_id));
-    console.log('Home stop IDs:', Array.from(homeStopIds));
-    console.log('Dest stop IDs:', Array.from(destStopIds));
-    
-    const homeStopTrips = new Set();
-    for (const hs of homeStops) {
-        if (stopTripIdsCache[hs.stop_id]) {
-            for (const tripId of stopTripIdsCache[hs.stop_id]) {
-                homeStopTrips.add(tripId);
-            }
-        }
-    }
-    console.log('Trips at home stops:', homeStopTrips.size);
-    
-    const candidateTrips = [];
-    const seenRoutes = new Set();
-    const MAX_ROUTES = 5;
-    const totalTrips = homeStopTrips.size;
-    let processed = 0;
-    
-    for (const tripId of homeStopTrips) {
-        if (candidateTrips.length >= MAX_ROUTES) break;
-        
-        processed++;
-        if (processed % 100 === 0 || processed === totalTrips) {
-            updateProgress(processed, totalTrips);
-        }
-        
-        const trip = tripToRouteCache[tripId];
-        if (!trip) continue;
-        
-        if (seenRoutes.has(trip.route_id)) continue;
-        
-        const tripStopTimes = tripStopTimesCache[tripId];
-        if (!tripStopTimes) continue;
-        
-        const homeIdx = tripStopTimes.findIndex(st => homeStopIds.has(st.stop_id));
-        const destIdx = tripStopTimes.findIndex(st => destStopIds.has(st.stop_id));
-        
-        if (homeIdx >= 0 && destIdx >= 0 && homeIdx < destIdx) {
-            seenRoutes.add(trip.route_id);
-            candidateTrips.push({
-                trip,
-                homeStop: tripStopTimes[homeIdx],
-                destStop: tripStopTimes[destIdx],
-                stopTimes: tripStopTimes
-            });
-        }
-    }
-    
-    for (const ct of candidateTrips) {
-        const route = routesData.find(r => r.route_id === ct.trip.route_id);
-        if (!route) continue;
-        
-        const arrivalSecs = parseInt(ct.homeStop.arrival_time.split(':')[0]) * 3600 +
-                          parseInt(ct.homeStop.arrival_time.split(':')[1]) * 60 +
-                          parseInt(ct.homeStop.arrival_time.split(':')[2]);
-        
-        if (arrivalSecs <= currentTime) continue;
-        
-        const walkTimeMinutes = getWalkTime(ct.homeStop.stop_id, homeStops);
-        const waitTimeMinutes = Math.floor((arrivalSecs - currentTime) / 60);
-        const totalTime = walkTimeMinutes + waitTimeMinutes;
-        const canMakeIt = waitTimeMinutes > walkTimeMinutes;
-        
-        const homeStopObj = stopsData.find(s => s.stop_id === ct.homeStop.stop_id);
-        const destStopObj = stopsData.find(s => s.stop_id === ct.destStop.stop_id);
-        
-        options.push({
-            route,
-            homeStop: homeStopObj,
-            destStop: destStopObj,
-            waitTimeMinutes,
-            walkTimeMinutes,
-            totalTime,
-            canMakeIt,
-            tripId: ct.trip.trip_id,
-            allStopTimes: ct.stopTimes
-        });
-    }
-    
-    options.sort((a, b) => a.totalTime - b.totalTime);
-    
-    const uniqueRoutes = [];
-    const seenRouteIds = new Set();
-    for (const opt of options) {
-        const key = opt.route.route_id;
-        if (!seenRouteIds.has(key)) {
-            seenRouteIds.add(key);
-            uniqueRoutes.push(opt);
-        }
-    }
-    
-    console.log('Found routes:', uniqueRoutes.length);
-    return uniqueRoutes.slice(0, 5);
 }
 
 function findNearestStops(lat, lon, count) {
@@ -889,6 +760,13 @@ function reset() {
     }
     routeLines.forEach(l => map.removeLayer(l));
     routeLines = [];
+    
+    routeTripIdsCache = null;
+    stopTripIdsCache = null;
+    tripToRouteCache = null;
+    tripStopTimesCache = null;
+    stopTimesData = [];
+    tripsData = [];
     
     history.replaceState(null, '', window.location.pathname);
     

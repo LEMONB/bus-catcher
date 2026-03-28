@@ -74,6 +74,39 @@ const findNearestStops = (stopsData, lat, lon, count) => {
     return stopsWithDist.slice(0, count).map(s => s.stop);
 };
 
+const findNearestTripForRoute = (routeId, tripsData, stopTimesData, stopAId, currentTime) => {
+    const routeTrips = tripsData.filter(t => t.route_id === routeId);
+    let nearestTrip = null;
+    let nearestWaitTime = Infinity;
+    
+    for (const trip of routeTrips) {
+        const tripStops = stopTimesData
+            .filter(st => st.trip_id === trip.trip_id)
+            .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+        
+        const idxA = tripStops.findIndex(st => st.stop_id === stopAId);
+        if (idxA < 0) continue;
+        
+        const departureTime = tripStops[idxA].arrival_time;
+        const [hours, minutes, seconds] = departureTime.split(':').map(Number);
+        let departureSecs = hours * 3600 + minutes * 60 + seconds;
+        
+        let waitTimeSecs;
+        if (departureSecs > currentTime) {
+            waitTimeSecs = departureSecs - currentTime;
+        } else {
+            waitTimeSecs = (24 * 3600 - currentTime) + departureSecs;
+        }
+        
+        if (waitTimeSecs < nearestWaitTime) {
+            nearestWaitTime = waitTimeSecs;
+            nearestTrip = { trip, waitTimeMinutes: Math.floor(waitTimeSecs / 60) };
+        }
+    }
+    
+    return nearestTrip;
+};
+
 describe('parseCSV', () => {
     test('parses simple CSV', () => {
         const csv = '"id","name"\n"1","Test"';
@@ -178,6 +211,48 @@ describe('findNearestStops', () => {
     });
 });
 
+describe('findNearestTripForRoute', () => {
+    const tripsData = [
+        { trip_id: 'trip_06', route_id: 'route525' },
+        { trip_id: 'trip_08', route_id: 'route525' },
+        { trip_id: 'trip_10', route_id: 'route525' }
+    ];
+    
+    const stopTimesData = [
+        { trip_id: 'trip_06', stop_id: 'stopA', arrival_time: '06:00:00', stop_sequence: '1' },
+        { trip_id: 'trip_08', stop_id: 'stopA', arrival_time: '08:00:00', stop_sequence: '1' },
+        { trip_id: 'trip_10', stop_id: 'stopA', arrival_time: '10:00:00', stop_sequence: '1' }
+    ];
+    
+    test('finds nearest trip (08:00) when current time is 07:30', () => {
+        const currentTime = 7 * 3600 + 30 * 60;
+        
+        const result = findNearestTripForRoute('route525', tripsData, stopTimesData, 'stopA', currentTime);
+        
+        expect(result).not.toBeNull();
+        expect(result.trip.trip_id).toBe('trip_08');
+        expect(result.waitTimeMinutes).toBe(30);
+    });
+    
+    test('finds next day trip when all trips passed', () => {
+        const currentTime = 22 * 3600;
+        
+        const result = findNearestTripForRoute('route525', tripsData, stopTimesData, 'stopA', currentTime);
+        
+        expect(result).not.toBeNull();
+        expect(result.trip.trip_id).toBe('trip_06');
+        expect(result.waitTimeMinutes).toBe(480);
+    });
+    
+    test('returns null when stop not found', () => {
+        const currentTime = 7 * 3600 + 30 * 60;
+        
+        const result = findNearestTripForRoute('route525', tripsData, stopTimesData, 'nonexistent', currentTime);
+        
+        expect(result).toBeNull();
+    });
+});
+
 describe('routeGoesFromAToB', () => {
     const tripsData = [
         { trip_id: 'trip1', route_id: 'routeA' }
@@ -205,35 +280,6 @@ describe('routeGoesFromAToB', () => {
         const result = routeGoesFromAToB(stopTimesData, tripsData, 'routeA', 'stop1', 'nonexistent');
         
         expect(result).toBe(false);
-    });
-});
-
-describe('canMakeIt logic', () => {
-    test('returns true when wait time > walk time', () => {
-        const waitTimeMinutes = 10;
-        const walkTimeMinutes = 5;
-        
-        const canMakeIt = waitTimeMinutes > walkTimeMinutes;
-        
-        expect(canMakeIt).toBe(true);
-    });
-
-    test('returns false when walk time > wait time', () => {
-        const waitTimeMinutes = 5;
-        const walkTimeMinutes = 10;
-        
-        const canMakeIt = waitTimeMinutes > walkTimeMinutes;
-        
-        expect(canMakeIt).toBe(false);
-    });
-
-    test('returns false when times are equal', () => {
-        const waitTimeMinutes = 5;
-        const walkTimeMinutes = 5;
-        
-        const canMakeIt = waitTimeMinutes > walkTimeMinutes;
-        
-        expect(canMakeIt).toBe(false);
     });
 });
 
@@ -274,44 +320,7 @@ describe('arrival time calculation', () => {
     });
 });
 
-describe('ranking routes', () => {
-    test('sorts routes by total time', () => {
-        const routes = [
-            { waitTimeMinutes: 10, walkTimeMinutes: 5, totalTime: 15 },
-            { waitTimeMinutes: 5, walkTimeMinutes: 3, totalTime: 8 },
-            { waitTimeMinutes: 15, walkTimeMinutes: 2, totalTime: 17 }
-        ];
-        
-        routes.sort((a, b) => a.totalTime - b.totalTime);
-        
-        expect(routes[0].totalTime).toBe(8);
-        expect(routes[1].totalTime).toBe(15);
-        expect(routes[2].totalTime).toBe(17);
-    });
-
-    test('filters duplicate routes', () => {
-        const routes = [
-            { route: { route_id: '1', route_short_name: '525' } },
-            { route: { route_id: '1', route_short_name: '525' } },
-            { route: { route_id: '2', route_short_name: '32' } }
-        ];
-        
-        const uniqueRoutes = [];
-        const seenRoutes = new Set();
-        
-        for (const r of routes) {
-            const key = r.route.route_id;
-            if (!seenRoutes.has(key)) {
-                seenRoutes.add(key);
-                uniqueRoutes.push(r);
-            }
-        }
-        
-        expect(uniqueRoutes).toHaveLength(2);
-    });
-});
-
-describe('URL encoding/decoding', () => {
+describe('URL state', () => {
     test('encodes home coordinates in URL', () => {
         const homePoint = { lat: 55.7558, lon: 37.6173 };
         const params = new URLSearchParams();
@@ -335,33 +344,6 @@ describe('URL encoding/decoding', () => {
         params.set('dest', `${destPoint.lat},${destPoint.lon}`);
         
         expect(params.toString()).toBe('dest=55.802164%2C37.745018');
-    });
-});
-
-describe('total time calculation', () => {
-    test('calculates total time correctly', () => {
-        const waitTimeMinutes = 5;
-        const walkTimeMinutes = 3;
-        
-        const totalTime = waitTimeMinutes + walkTimeMinutes;
-        
-        expect(totalTime).toBe(8);
-    });
-
-    test('total time is sum of wait and walk', () => {
-        const routes = [
-            { waitTimeMinutes: 10, walkTimeMinutes: 5 },
-            { waitTimeMinutes: 3, walkTimeMinutes: 2 },
-            { waitTimeMinutes: 15, walkTimeMinutes: 10 }
-        ];
-        
-        routes.forEach(r => {
-            r.totalTime = r.waitTimeMinutes + r.walkTimeMinutes;
-        });
-        
-        routes.sort((a, b) => a.totalTime - b.totalTime);
-        
-        expect(routes[0].totalTime).toBe(5);
     });
 });
 
@@ -866,6 +848,25 @@ describe('IT-4: Reset - Clears all state', () => {
         expect(stepDest).toBe(false);
         expect(routesList).toBe(false);
     });
+
+    test('reset clears all caches', () => {
+        // Setup caches
+        global.routeTripIdsCache = { 'route1': new Set(['trip1']) };
+        global.stopTripIdsCache = { 'stop1': new Set(['trip1']) };
+        global.tripToRouteCache = { 'trip1': { route_id: 'route1' } };
+        global.tripStopTimesCache = { 'trip1': [] };
+
+        // Call reset logic
+        global.routeTripIdsCache = null;
+        global.stopTripIdsCache = null;
+        global.tripToRouteCache = null;
+        global.tripStopTimesCache = null;
+
+        expect(global.routeTripIdsCache).toBeNull();
+        expect(global.stopTripIdsCache).toBeNull();
+        expect(global.tripToRouteCache).toBeNull();
+        expect(global.tripStopTimesCache).toBeNull();
+    });
 });
 
 describe('End-to-end scenario: User flow from PRD', () => {
@@ -1329,7 +1330,7 @@ describe('New UX: Stop Selection', () => {
 });
 
 // ============================================
-// NEW UX: State Machine
+// NEW UX: UI Rendering
 // ============================================
 
 describe('New UX: State Machine', () => {

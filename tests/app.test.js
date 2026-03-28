@@ -1336,38 +1336,56 @@ describe('New UX: Stop Selection', () => {
 describe('New UX: State Machine', () => {
     test('initial state has no selections', () => {
         const state = {
+            homePoint: null,
             stopA: null,
-            stopB: null,
-            homePoint: null
+            stopB: null
         };
         
+        expect(state.homePoint).toBeNull();
         expect(state.stopA).toBeNull();
         expect(state.stopB).toBeNull();
-        expect(state.homePoint).toBeNull();
     });
     
-    test('first stop click sets stopA', () => {
-        const stopA = { stop_id: 'stop1', stop_name: 'Остановка 1' };
-        let state = { stopA: null, stopB: null, homePoint: null };
+    test('first click sets homePoint', () => {
+        const homePoint = { lat: 55.7558, lon: 37.6173 };
+        let state = { homePoint: null, stopA: null, stopB: null };
         
-        if (!state.stopA) {
+        if (!state.homePoint) {
+            state.homePoint = homePoint;
+        }
+        
+        expect(state.homePoint.lat).toBe(55.7558);
+        expect(state.stopA).toBeNull();
+    });
+    
+    test('second click (on stop) sets stopA', () => {
+        const homePoint = { lat: 55.7558, lon: 37.6173 };
+        const stopA = { stop_id: 'stop1', stop_name: 'Остановка 1' };
+        let state = { homePoint: null, stopA: null, stopB: null };
+        
+        state.homePoint = homePoint;
+        if (state.homePoint && !state.stopA) {
             state.stopA = stopA;
         }
         
+        expect(state.homePoint.lat).toBe(55.7558);
         expect(state.stopA.stop_id).toBe('stop1');
         expect(state.stopB).toBeNull();
     });
     
-    test('second stop click sets stopB', () => {
+    test('third click (on stop) sets stopB', () => {
+        const homePoint = { lat: 55.7558, lon: 37.6173 };
         const stopA = { stop_id: 'stop1', stop_name: 'Остановка 1' };
         const stopB = { stop_id: 'stop2', stop_name: 'Остановка 2' };
-        let state = { stopA: null, stopB: null, homePoint: null };
+        let state = { homePoint: null, stopA: null, stopB: null };
         
+        state.homePoint = homePoint;
         state.stopA = stopA;
-        if (state.stopA && !state.stopB) {
+        if (state.homePoint && state.stopA && !state.stopB) {
             state.stopB = stopB;
         }
         
+        expect(state.homePoint.lat).toBe(55.7558);
         expect(state.stopA.stop_id).toBe('stop1');
         expect(state.stopB.stop_id).toBe('stop2');
     });

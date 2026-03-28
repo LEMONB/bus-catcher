@@ -219,21 +219,21 @@ function handleMapClick(e) {
     const lat = e.latlng.lat;
     const lon = e.latlng.lng;
     
-    // Step 1: Select stop A
+    // Step 1: Select home point
+    if (!homePoint) {
+        selectHomePoint(lat, lon);
+        return;
+    }
+    
+    // Step 2: Select stop A (boarding)
     if (!stopA) {
         selectStopA(lat, lon);
         return;
     }
     
-    // Step 2: Select stop B
+    // Step 3: Select stop B (alighting)
     if (!stopB) {
         selectStopB(lat, lon);
-        return;
-    }
-    
-    // Step 3: Select home point
-    if (!homePoint) {
-        selectHomePoint(lat, lon);
         return;
     }
 }
@@ -276,7 +276,7 @@ function selectStopA(lat, lon) {
     }).addTo(map);
     stopAMarker.bindPopup('Остановка: ' + stop.stop_name).openPopup();
     
-    updateUIForStep(2);
+    updateUIForStep(3);
     updateURL();
 }
 
@@ -305,23 +305,6 @@ function selectStopB(lat, lon) {
     }).addTo(map);
     stopBMarker.bindPopup('Остановка: ' + stop.stop_name).openPopup();
     
-    updateUIForStep(3);
-    updateURL();
-}
-
-function selectHomePoint(lat, lon) {
-    homePoint = { lat, lon };
-    
-    if (homeMarker) map.removeLayer(homeMarker);
-    homeMarker = L.marker([lat, lon], {
-        icon: L.divIcon({
-            className: 'home-marker',
-            html: '🏠',
-            iconSize: [30, 30]
-        })
-    }).addTo(map);
-    homeMarker.bindPopup('Отсюда выходите').openPopup();
-    
     // Load schedule if not loaded, then find buses
     if (stopTimesData.length === 0) {
         loadingEl = showLoading('Загрузка расписания...');
@@ -339,31 +322,48 @@ function selectHomePoint(lat, lon) {
     }
 }
 
+function selectHomePoint(lat, lon) {
+    homePoint = { lat, lon };
+    
+    if (homeMarker) map.removeLayer(homeMarker);
+    homeMarker = L.marker([lat, lon], {
+        icon: L.divIcon({
+            className: 'home-marker',
+            html: '🏠',
+            iconSize: [30, 30]
+        })
+    }).addTo(map);
+    homeMarker.bindPopup('Отсюда выходите').openPopup();
+    
+    updateUIForStep(2);
+    updateURL();
+}
+
 function updateUIForStep(step) {
-    const step1 = document.getElementById('step-1');
-    const step2 = document.getElementById('step-2');
-    const step3 = document.getElementById('step-3');
+    const stepHome = document.getElementById('step-home');
+    const stepStopA = document.getElementById('step-stopA');
+    const stepStopB = document.getElementById('step-stopB');
     const routesList = document.getElementById('routes-list');
     
     if (step === 1) {
-        if (step1) step1.classList.remove('hidden');
-        if (step2) step2.classList.add('hidden');
-        if (step3) step3.classList.add('hidden');
+        if (stepHome) stepHome.classList.remove('hidden');
+        if (stepStopA) stepStopA.classList.add('hidden');
+        if (stepStopB) stepStopB.classList.add('hidden');
         if (routesList) routesList.classList.add('hidden');
     } else if (step === 2) {
-        if (step1) step1.classList.add('hidden');
-        if (step2) step2.classList.remove('hidden');
-        if (step3) step3.classList.add('hidden');
+        if (stepHome) stepHome.classList.add('hidden');
+        if (stepStopA) stepStopA.classList.remove('hidden');
+        if (stepStopB) stepStopB.classList.add('hidden');
         if (routesList) routesList.classList.add('hidden');
     } else if (step === 3) {
-        if (step1) step1.classList.add('hidden');
-        if (step2) step2.classList.add('hidden');
-        if (step3) step3.classList.remove('hidden');
+        if (stepHome) stepHome.classList.add('hidden');
+        if (stepStopA) stepStopA.classList.add('hidden');
+        if (stepStopB) stepStopB.classList.remove('hidden');
         if (routesList) routesList.classList.add('hidden');
     } else if (step === 4) {
-        if (step1) step1.classList.add('hidden');
-        if (step2) step2.classList.add('hidden');
-        if (step3) step3.classList.add('hidden');
+        if (stepHome) stepHome.classList.add('hidden');
+        if (stepStopA) stepStopA.classList.add('hidden');
+        if (stepStopB) stepStopB.classList.add('hidden');
         if (routesList) routesList.classList.remove('hidden');
     }
 }
@@ -722,9 +722,9 @@ function loadFromURL() {
     
     // Determine current step based on what's selected
     let step = 1;
-    if (stopA && stopB && homePoint) step = 4;
-    else if (stopA && stopB) step = 3;
-    else if (stopA) step = 2;
+    if (homePoint && stopA && stopB) step = 4;
+    else if (homePoint && stopA) step = 3;
+    else if (homePoint) step = 2;
     
     if (step === 4 && stopTimesData.length === 0) {
         // Need to load schedule first

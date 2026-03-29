@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
+    "build": "browserify js/app.js -o js/bundle.js",
     "serve": "npx http-server -p 3000 -c-1",
     "download-gtfs": "node scripts/download-gtfs.js"
   },
@@ -17,6 +18,7 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "browserify": "^17.0.1",
     "jest": "^30.3.0"
   },
   "dependencies": {

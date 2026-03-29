@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BusCatcher Дашборд</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        #header {
+            background: #2196F3;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        #header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        #back-btn {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+        
+        #back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        #header .subtitle {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        #last-updated {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 10px;
+        }
+        
+        #favorites-list {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .dashboard-item {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .dashboard-item.success {
+            border-left: 5px solid #4CAF50;
+        }
+        
+        .dashboard-item.danger {
+            border-left: 5px solid #f44336;
+        }
+        
+        .dashboard-route {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .dashboard-stops {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+        
+        .dashboard-time {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .dashboard-time.success {
+            color: #4CAF50;
+        }
+        
+        .dashboard-time.danger {
+            color: #f44336;
+        }
+        
+        .dashboard-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+        }
+        
+        .dashboard-status {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        .dashboard-status.success {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .dashboard-status.danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .no-favorites {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .no-favorites a {
+            color: #2196F3;
+        }
+        
+        #refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #2196F3;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        
+        #refresh-btn:hover {
+            background: #1976D2;
+            transform: scale(1.1);
+        }
+        
+        #refresh-btn.refreshing {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        @media (max-width: 600px) {
+            #favorites-list {
+                padding: 0 10px;
+            }
+            
+            .dashboard-item {
+                padding: 15px;
+            }
+            
+            .dashboard-time {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <a href="./" id="back-btn">← Назад</a>
+        <h1>🚌 BusCatcher</h1>
+        <div class="subtitle">Прямо сейчас</div>
+        <div id="last-updated">Обновлено: --:--:--</div>
+    </div>
+    
+    <div id="loader" style="text-align:center;padding:40px;">
+        <div class="spinner" style="width:40px;height:40px;border:4px solid #e3f2fd;border-top-color:#2196F3;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;"></div>
+        <p style="color:#666;">Загрузка...</p>
+    </div>
+    
+    <div id="favorites-list" class="hidden">
+        <div class="no-favorites">
+            <p>Нет избранных маршрутов</p>
+            <p><a href="./">Добавить маршруты в приложении</a></p>
+        </div>
+    </div>
+    
+    <button id="refresh-btn" title="Обновить">↻</button>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const FAVORITES_KEY = 'buscatcher_favorites';
+        let caches = null;
+        let routesData = [];
+        let tripsData = [];
+        let stopTimesData = [];
+        let stopsData = [];
+        
+        function getFavorites() {
+            const data = localStorage.getItem(FAVORITES_KEY);
+            if (!data) return [];
+            try {
+                return JSON.parse(data);
+            } catch {
+                return [];
+            }
+        }
+        
+        async function loadGTFS() {
+            const db = await openDB();
+            
+            const [stopsText, routesText] = await Promise.all([
+                loadFile(db, 'stops.txt'),
+                loadFile(db, 'routes.txt')
+            ]);
+            
+            stopsData = parseCSV(stopsText);
+            routesData = parseCSV(routesText);
+        }
+        
+        async function loadSchedule() {
+            const db = await openDB();
+            
+            const chunk1 = await loadFile(db, 'stop_times_1.txt');
+            let stopTimesText = '';
+            if (chunk1) {
+                const chunks = await Promise.all([
+                    loadFile(db, 'stop_times_1.txt'),
+                    loadFile(db, 'stop_times_2.txt'),
+                    loadFile(db, 'stop_times_3.txt')
+                ]);
+                stopTimesText = chunks.filter(c => c).join('\n');
+            }
+            
+            const tripsText = await loadFile(db, 'trips.txt');
+            
+            stopTimesData = parseCSV(stopTimesText);
+            tripsData = parseCSV(tripsText);
+            
+            caches = buildCaches(tripsData, stopTimesData);
+        }
+        
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('BusCatcherDB', 2);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+            });
+        }
+        
+        function loadFile(db, filename) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('gtfs', 'readonly');
+                const store = tx.objectStore('gtfs');
+                const request = store.get(filename);
+                request.onsuccess = () => resolve(request.result || '');
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            if (lines.length === 0) return [];
+            const headers = lines[0].split(',').map(h => h.replace(/"/g, ''));
+            return lines.slice(1).map(line => {
+                if (!line.trim()) return null;
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                for (const char of line) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current.replace(/"/g, ''));
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                values.push(current.replace(/"/g, ''));
+                const obj = {};
+                headers.forEach((h, i) => obj[h] = values[i] || '');
+                return obj;
+            }).filter(Boolean);
+        }
+        
+        function buildCaches(tripsData, stopTimesData) {
+            const routeTripIdsCache = {};
+            const stopTripIdsCache = {};
+            const tripToRouteCache = {};
+            const tripStopTimesCache = {};
+            
+            for (const trip of tripsData) {
+                tripToRouteCache[trip.trip_id] = trip;
+                if (!routeTripIdsCache[trip.route_id]) {
+                    routeTripIdsCache[trip.route_id] = new Set();
+                }
+                routeTripIdsCache[trip.route_id].add(trip.trip_id);
+            }
+            
+            for (const st of stopTimesData) {
+                if (!stopTripIdsCache[st.stop_id]) {
+                    stopTripIdsCache[st.stop_id] = new Set();
+                }
+                stopTripIdsCache[st.stop_id].add(st.trip_id);
+                if (!tripStopTimesCache[st.trip_id]) {
+                    tripStopTimesCache[st.trip_id] = [];
+                }
+                tripStopTimesCache[st.trip_id].push(st);
+            }
+            
+            for (const tripId in tripStopTimesCache) {
+                tripStopTimesCache[tripId].sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+            }
+            
+            return { routeTripIdsCache, stopTripIdsCache, tripToRouteCache, tripStopTimesCache };
+        }
+        
+        function getDistanceBetweenPoints(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        function getWalkTime(stop, homePoint) {
+            const dist = getDistanceBetweenPoints(
+                homePoint.lat, homePoint.lon,
+                parseFloat(stop.stop_lat), parseFloat(stop.stop_lon)
+            );
+            return Math.round((dist / 5) * 60);
+        }
+        
+        function timeToSeconds(timeStr) {
+            const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+            return (hours || 0) * 3600 + (minutes || 0) * 60 + (seconds || 0);
+        }
+        
+        function calculateWaitTime(arrivalSeconds, currentTime) {
+            if (arrivalSeconds > currentTime) {
+                return arrivalSeconds - currentTime;
+            }
+            return (24 * 3600 - currentTime) + arrivalSeconds;
+        }
+        
+        function findBuses(stopA, stopB, homePoint, caches, routesData, currentTime) {
+            const { stopTripIdsCache, tripToRouteCache, tripStopTimesCache } = caches;
+            
+            const stopATripIds = stopTripIdsCache[stopA.stop_id];
+            if (!stopATripIds) return [];
+            
+            const tripsByRoute = {};
+            for (const tripId of stopATripIds) {
+                const trip = tripToRouteCache[tripId];
+                if (!trip) continue;
+                if (!tripsByRoute[trip.route_id]) {
+                    tripsByRoute[trip.route_id] = [];
+                }
+                tripsByRoute[trip.route_id].push(tripId);
+            }
+            
+            const buses = [];
+            
+            for (const routeId in tripsByRoute) {
+                const tripIds = tripsByRoute[routeId];
+                let bestTrip = null;
+                let bestWaitTime = Infinity;
+                
+                for (const tripId of tripIds) {
+                    const tripStops = tripStopTimesCache[tripId];
+                    if (!tripStops) continue;
+                    
+                    const idxA = tripStops.findIndex(st => st.stop_id === stopA.stop_id);
+                    const idxB = tripStops.findIndex(st => st.stop_id === stopB.stop_id);
+                    
+                    if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
+                        const departureTime = tripStops[idxA].arrival_time;
+                        const departureSecs = timeToSeconds(departureTime);
+                        const waitTimeSecs = calculateWaitTime(departureSecs, currentTime);
+                        
+                        if (waitTimeSecs < bestWaitTime) {
+                            bestWaitTime = waitTimeSecs;
+                            bestTrip = { tripId, tripStops, departureSecs };
+                        }
+                    }
+                }
+                
+                if (bestTrip) {
+                    const walkTimeMinutes = getWalkTime(stopA, homePoint);
+                    const waitTimeMinutes = Math.floor(bestWaitTime / 60);
+                    const canMakeIt = waitTimeMinutes > walkTimeMinutes;
+                    
+                    const trip = tripToRouteCache[bestTrip.tripId];
+                    const route = routesData.find(r => r.route_id === routeId);
+                    
+                    buses.push({
+                        route,
+                        waitTimeMinutes,
+                        walkTimeMinutes,
+                        canMakeIt
+                    });
+                }
+            }
+            
+            buses.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes);
+            return buses;
+        }
+        
+        function renderDashboard() {
+            const favorites = getFavorites();
+            const container = document.getElementById('favorites-list');
+            
+            if (favorites.length === 0) {
+                container.innerHTML = `
+                    <div class="no-favorites">
+                        <p>Нет избранных маршрутов</p>
+                        <p><a href="./">Добавить маршруты в приложении</a></p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const now = new Date();
+            const currentTime = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+            
+            container.innerHTML = '';
+            
+            favorites.forEach(fav => {
+                const stopA = stopsData.find(s => s.stop_id === fav.stopA?.stop_id);
+                const stopB = stopsData.find(s => s.stop_id === fav.stopB?.stop_id);
+                
+                if (!stopA || !stopB) {
+                    return;
+                }
+                
+                const buses = findBuses(stopA, stopB, fav.homePoint, caches, routesData, currentTime);
+                const bestBus = buses[0];
+                
+                const div = document.createElement('div');
+                div.className = 'dashboard-item ' + (bestBus?.canMakeIt ? 'success' : 'danger');
+                
+                div.innerHTML = `
+                    <div class="dashboard-route">${fav.name}</div>
+                    <div class="dashboard-stops">${stopA.stop_name} → ${stopB.stop_name}</div>
+                    ${bestBus ? `
+                        <div class="dashboard-label">Следующий автобус</div>
+                        <div class="dashboard-time ${bestBus.canMakeIt ? 'success' : 'danger'}">
+                            через ${bestBus.waitTimeMinutes} мин
+                        </div>
+                        <div>Пешком: ${bestBus.walkTimeMinutes} мин</div>
+                        <div class="dashboard-status ${bestBus.canMakeIt ? 'success' : 'danger'}">
+                            ${bestBus.canMakeIt ? 'Успеешь ✓' : 'Не успеешь ✗'}
+                        </div>
+                        <div style="margin-top:8px;font-size:12px;color:#999;">
+                            Маршрут: ${bestBus.route?.route_short_name || '?'}
+                        </div>
+                    ` : '<div style="color:#999;">Нет доступных маршрутов</div>'}
+                `;
+                
+                container.appendChild(div);
+            });
+            
+            document.getElementById('last-updated').textContent = 
+                'Обновлено: ' + now.toLocaleTimeString('ru-RU');
+        }
+        
+        async function refresh() {
+            const btn = document.getElementById('refresh-btn');
+            btn.classList.add('refreshing');
+            
+            try {
+                if (stopTimesData.length === 0) {
+                    await loadSchedule();
+                }
+                renderDashboard();
+            } catch (e) {
+                console.error('Error refreshing:', e);
+            }
+            
+            btn.classList.remove('refreshing');
+        }
+        
+        document.getElementById('refresh-btn').addEventListener('click', refresh);
+        
+        async function init() {
+            try {
+                await loadGTFS();
+                await loadSchedule();
+                renderDashboard();
+                
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('favorites-list').classList.remove('hidden');
+                
+                setInterval(refresh, 30000);
+            } catch (e) {
+                console.error('Error loading data:', e);
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('favorites-list').innerHTML = 
+                    '<div class="no-favorites">Ошибка загрузки данных</div>';
+                document.getElementById('favorites-list').classList.remove('hidden');
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>

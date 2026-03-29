@@ -10,8 +10,17 @@
 </head>
 <body>
     <div id="app">
-        <div id="map"></div>
+        <div id="map">
+            <div id="corner-loader" class="hidden">
+                <div class="spinner"></div>
+                <span class="loader-text">Загрузка...</span>
+            </div>
+        </div>
         <div id="panel">
+            <div id="favorites-section" class="hidden">
+                <h3>Избранное:</h3>
+                <div id="favorites-container"></div>
+            </div>
             <div id="setup-mode">
                 <div class="step" id="step-home">
                     <p>Кликните на карте: <b>откуда выходите</b> 🏠</p>
@@ -26,13 +35,15 @@
                     <h3>Автобусы:</h3>
                     <div id="routes-container"></div>
                 </div>
+                <button id="search-btn" class="btn-secondary">🔍 Поиск</button>
+                <button id="dashboard-btn" class="btn-secondary" onclick="window.location.href='./dashboard.html'">📊 Дашборд</button>
                 <button id="reset-btn" class="btn-secondary">Сбросить</button>
             </div>
         </div>
     </div>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="js/app.js?v=5"></script>
+    <script src="js/bundle.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js').catch((err) => {

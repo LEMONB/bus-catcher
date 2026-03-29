@@ -27,10 +27,19 @@ coverage/
 .env
 .env.local
 
-# GTFS Data (download with npm run download-gtfs)
-data/gtfs/
+# GTFS Data
 data/*.zip
 data/*.geojson
+data/moscow-gtfs/
+
+# Keep only needed GTFS files
+data/gtfs/*
+!data/gtfs/stops.txt
+!data/gtfs/routes.txt
+!data/gtfs/trips.txt
+!data/gtfs/stop_times_1.txt
+!data/gtfs/stop_times_2.txt
+!data/gtfs/stop_times_3.txt
 
 # Misc
 nul

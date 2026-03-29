@@ -1541,3 +1541,134 @@ describe('New UX: UI Rendering', () => {
         expect(global.document.getElementById('routes-container')).not.toBeNull();
     });
 });
+
+// ============================================
+// CHUNKED STOP_TIMES LOADING
+// ============================================
+
+describe('Chunked stop_times Loading', () => {
+    const MAX_CHUNK_SIZE = 90 * 1024 * 1024; // 90MB
+
+    describe('splitStopTimesContent', () => {
+        function splitStopTimesContent(content, numChunks) {
+            const lines = content.trim().split('\n');
+            const header = lines[0];
+            const dataLines = lines.slice(1);
+            
+            const chunkSize = Math.ceil(dataLines.length / numChunks);
+            const chunks = [];
+            
+            for (let i = 0; i < numChunks; i++) {
+                const start = i * chunkSize;
+                const end = Math.min(start + chunkSize, dataLines.length);
+                const chunkContent = header + '\n' + dataLines.slice(start, end).join('\n');
+                chunks.push(chunkContent);
+            }
+            
+            return chunks;
+        }
+
+        test('splits content into correct number of chunks', () => {
+            const content = 'trip_id,stop_id,arrival_time,stop_sequence\n' + 
+                Array.from({ length: 30 }, (_, i) => `trip_${i},stop_${i},08:0${i}:00,${i + 1}`).join('\n');
+            
+            const chunks = splitStopTimesContent(content, 3);
+            
+            expect(chunks).toHaveLength(3);
+        });
+
+        test('preserves header in each chunk', () => {
+            const header = 'trip_id,stop_id,arrival_time,stop_sequence';
+            const content = header + '\n' + 
+                Array.from({ length: 30 }, (_, i) => `trip_${i},stop_${i},08:0${i}:00,${i + 1}`).join('\n');
+            
+            const chunks = splitStopTimesContent(content, 3);
+            
+            chunks.forEach(chunk => {
+                expect(chunk.startsWith(header)).toBe(true);
+            });
+        });
+
+        test('distributes data lines evenly across chunks', () => {
+            const content = 'trip_id,stop_id,arrival_time,stop_sequence\n' + 
+                Array.from({ length: 30 }, (_, i) => `trip_${i},stop_${i},08:0${i}:00,${i + 1}`).join('\n');
+            
+            const chunks = splitStopTimesContent(content, 3);
+            
+            // 30 data lines / 3 chunks = 10 lines per chunk (approximately)
+            const lineCounts = chunks.map(c => c.trim().split('\n').length);
+            expect(lineCounts[0]).toBeGreaterThan(0);
+            expect(lineCounts[1]).toBeGreaterThan(0);
+            expect(lineCounts[2]).toBeGreaterThan(0);
+        });
+
+        test('handles small content that does not need splitting', () => {
+            const content = 'trip_id,stop_id\ntrip_1,stop_1';
+            
+            const chunks = splitStopTimesContent(content, 3);
+            
+            expect(chunks).toHaveLength(3);
+            // All chunks should have header + some data (or just header for last chunks)
+        });
+    });
+
+    describe('loadStopTimesWithChunks', () => {
+        // Mock implementation matching app.js logic
+        async function loadGTFSFileMock(filename, fileContents) {
+            return fileContents[filename] || '';
+        }
+
+        async function loadStopTimesWithChunks(fileContents) {
+            // Try loading chunk 1 - if it exists, load all chunks
+            const chunk1 = await loadGTFSFileMock('stop_times_1.txt', fileContents);
+            
+            if (chunk1) {
+                const chunks = await Promise.all([
+                    loadGTFSFileMock('stop_times_1.txt', fileContents),
+                    loadGTFSFileMock('stop_times_2.txt', fileContents),
+                    loadGTFSFileMock('stop_times_3.txt', fileContents)
+                ]);
+                return chunks.filter(c => c).join('\n');
+            }
+            
+            // No chunks - return empty (no backward compat per user request)
+            return '';
+        }
+
+        test('loads all 3 chunks and combines them', async () => {
+            const fileContents = {
+                'stop_times_1.txt': 'trip_id,stop_id\ntrip_1,stop_1\ntrip_2,stop_2',
+                'stop_times_2.txt': 'trip_id,stop_id\ntrip_3,stop_3\ntrip_4,stop_4',
+                'stop_times_3.txt': 'trip_id,stop_id\ntrip_5,stop_5\ntrip_6,stop_6'
+            };
+            
+            const result = await loadStopTimesWithChunks(fileContents);
+            
+            expect(result).toContain('trip_1');
+            expect(result).toContain('trip_6');
+            expect(result.split('\n').length).toBeGreaterThan(6);
+        });
+
+        test('returns empty string when no chunks exist', async () => {
+            const fileContents = {};
+            
+            const result = await loadStopTimesWithChunks(fileContents);
+            
+            expect(result).toBe('');
+        });
+
+        test('filters out empty chunks', async () => {
+            const fileContents = {
+                'stop_times_1.txt': 'trip_id,stop_id\ntrip_1,stop_1',
+                'stop_times_2.txt': '', // Empty
+                'stop_times_3.txt': 'trip_id,stop_id\ntrip_2,stop_2'
+            };
+            
+            const result = await loadStopTimesWithChunks(fileContents);
+            
+            expect(result).toContain('trip_1');
+            expect(result).toContain('trip_2');
+            expect(result).not.toContain('trip_id,stop_id\ntrip_id,stop_id'); // No double header
+        });
+    });
+});

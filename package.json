@@ -8,11 +8,19 @@
     "serve": "npx http-server -p 3000 -c-1",
     "download-gtfs": "node scripts/download-gtfs.js"
   },
-  "keywords": ["bus", "moscow", "gtfs"],
+  "keywords": [
+    "bus",
+    "moscow",
+    "gtfs"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
     "jest": "^30.3.0"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "unzipper": "^0.12.3"
   }
 }

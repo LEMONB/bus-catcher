@@ -19,12 +19,10 @@ let routesData = [];
 let stopTimesData = [];
 let tripsData = [];
 
-const GTFS_URL = 'https://busmaps.ru/static/gtfs/moscow-gtfs.zip';
-
 const DB_NAME = 'BusCatcherDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'gtfs';
-const FILES_TO_STORE = ['stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt'];
+const FILES_TO_STORE = ['stops.txt', 'routes.txt', 'trips.txt', 'stop_times_1.txt', 'stop_times_2.txt', 'stop_times_3.txt'];
 
 function openDB() {
     return new Promise((resolve, reject) => {
@@ -33,9 +31,10 @@ function openDB() {
         request.onsuccess = () => resolve(request.result);
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME);
+            if (db.objectStoreNames.contains(STORE_NAME)) {
+                db.deleteObjectStore(STORE_NAME);
             }
+            db.createObjectStore(STORE_NAME);
         };
     });
 }
@@ -78,27 +77,18 @@ async function loadGTFSFile(filename) {
 }
 
 async function downloadAndExtractGTFS(onProgress) {
-    onProgress('Скачивание GTFS данных (287 MB)...');
-    
-    const response = await fetch(GTFS_URL);
-    if (!response.ok) {
-        throw new Error(`Failed to download GTFS: ${response.status}`);
-    }
-    
-    const blob = await response.blob();
-    onProgress('Распаковка архива...');
-    
-    const zip = await JSZip.loadAsync(blob);
+    onProgress('Загрузка GTFS данных из статических файлов...');
     
     const total = FILES_TO_STORE.length;
     for (let i = 0; i < FILES_TO_STORE.length; i++) {
         const filename = FILES_TO_STORE[i];
-        const file = zip.file(filename);
-        if (file) {
-            const content = await file.async('string');
-            await saveGTFSFile(filename, content);
-            onProgress(`Сохранено ${filename} (${i + 1}/${total})`);
+        const response = await fetch(`./data/gtfs/${filename}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load ${filename}: ${response.status}`);
         }
+        const content = await response.text();
+        await saveGTFSFile(filename, content);
+        onProgress(`Сохранено ${filename} (${i + 1}/${total})`);
     }
 }
 
@@ -137,8 +127,8 @@ async function loadGTFS() {
             loadGTFSFile('routes.txt')
         ]);
 
-        stopsData = parseCSV(stopsText);
-        routesData = parseCSV(routesText);
+        stopsData = await parseCSV(stopsText);
+        routesData = await parseCSV(routesText);
 
         renderStops();
     } catch (e) {
@@ -149,12 +139,29 @@ async function loadGTFS() {
     hideLoading();
 }
 
+async function loadStopTimesWithChunks() {
+    updateProgressText('Загрузка stop_times_1.txt из кэша...');
+    const chunk1 = await loadGTFSFile('stop_times_1.txt');
+    
+    if (chunk1) {
+        updateProgressText('Загрузка stop_times чанков из кэша...');
+        const chunks = await Promise.all([
+            loadGTFSFile('stop_times_1.txt'),
+            loadGTFSFile('stop_times_2.txt'),
+            loadGTFSFile('stop_times_3.txt')
+        ]);
+        return chunks.filter(c => c).join('\n');
+    }
+    
+    return '';
+}
+
 async function loadSchedule() {
     if (stopTimesData.length > 0) return;
     
     try {
         updateProgressText('Загрузка stop_times.txt из кэша...');
-        const stopTimesText = await loadGTFSFile('stop_times.txt');
+        const stopTimesText = await loadStopTimesWithChunks();
         
         updateProgressText('Обработка stop_times.txt...');
         stopTimesData = await parseCSVWithProgress(stopTimesText, (percent) => {

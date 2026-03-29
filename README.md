@@ -18,7 +18,7 @@ npm install
 npm run download-gtfs
 ```
 
-Или скачайте вручную с https://busmaps.ru/static/gtfs/moscow-gtfs.zip и распакуйте в `data/gtfs/`.
+Или скачайте вручную с https://s3.transitpdf.com/files/sourcedata/moscow-official.zip и распакуйте в `data/gtfs/`.
 
 ### 3. Запуск
 

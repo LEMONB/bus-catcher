@@ -1,17 +1,27 @@
-let state = {
+import { Stop, Point } from '../utils/time';
+import { Record } from '../gtfs/parser';
+
+interface State {
+    stopA: Stop | null;
+    stopB: Stop | null;
+    homePoint: Point | null;
+    step: number;
+}
+
+let state: State = {
     stopA: null,
     stopB: null,
     homePoint: null,
     step: 1
 };
 
-let onStateChange = null;
+let onStateChange: ((state: State) => void) | null = null;
 
-function getState() {
+export function getState(): State {
     return { ...state };
 }
 
-function setState(changes) {
+function setState(changes: Partial<State>): State {
     state = { ...state, ...changes };
     if (onStateChange) {
         onStateChange(state);
@@ -19,22 +29,22 @@ function setState(changes) {
     return state;
 }
 
-function setStopA(stop) {
+export function setStopA(stop: Stop | null): void {
     setState({ stopA: stop, step: stop ? 3 : state.step });
     updateURL();
 }
 
-function setStopB(stop) {
+export function setStopB(stop: Stop | null): void {
     setState({ stopB: stop, step: stop ? 4 : state.step });
     updateURL();
 }
 
-function setHomePoint(point) {
+export function setHomePoint(point: Point | null): void {
     setState({ homePoint: point, step: point ? 2 : state.step });
     updateURL();
 }
 
-function reset() {
+export function reset(): void {
     state = {
         stopA: null,
         stopB: null,
@@ -47,7 +57,7 @@ function reset() {
     history.replaceState(null, '', window.location.pathname);
 }
 
-function updateURL() {
+function updateURL(): void {
     const params = new URLSearchParams();
     
     if (state.stopA) {
@@ -64,7 +74,13 @@ function updateURL() {
     history.replaceState(null, '', newURL);
 }
 
-function loadFromURL(stopsData, callbacks) {
+interface Callbacks {
+    onHomePointChange?: (point: Point) => void;
+    onStopAChange?: (stop: Stop) => void;
+    onStopBChange?: (stop: Stop) => void;
+}
+
+export function loadFromURL(stopsData: Record[], callbacks: Callbacks): State {
     const params = new URLSearchParams(window.location.search);
     const stopAParam = params.get('stopA');
     const stopBParam = params.get('stopB');
@@ -73,7 +89,7 @@ function loadFromURL(stopsData, callbacks) {
     let newState = { ...state };
     
     if (stopAParam) {
-        const stop = stopsData.find(s => s.stop_id === stopAParam);
+        const stop = stopsData.find(s => s.stop_id === stopAParam) as Stop | undefined;
         if (stop) {
             newState.stopA = stop;
             if (callbacks.onStopAChange) callbacks.onStopAChange(stop);
@@ -81,7 +97,7 @@ function loadFromURL(stopsData, callbacks) {
     }
     
     if (stopBParam) {
-        const stop = stopsData.find(s => s.stop_id === stopBParam);
+        const stop = stopsData.find(s => s.stop_id === stopBParam) as Stop | undefined;
         if (stop) {
             newState.stopB = stop;
             if (callbacks.onStopBChange) callbacks.onStopBChange(stop);
@@ -106,26 +122,13 @@ function loadFromURL(stopsData, callbacks) {
     return state;
 }
 
-function subscribe(callback) {
+export function subscribe(callback: (state: State) => void): void {
     onStateChange = callback;
 }
 
-function getStep() {
+export function getStep(): number {
     if (state.homePoint && state.stopA && state.stopB) return 4;
     if (state.homePoint && state.stopA) return 3;
     if (state.homePoint) return 2;
     return 1;
 }
-
-module.exports = {
-    getState,
-    setState,
-    setStopA,
-    setStopB,
-    setHomePoint,
-    reset,
-    updateURL,
-    loadFromURL,
-    subscribe,
-    getStep
-};

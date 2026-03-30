@@ -1,6 +1,23 @@
-const { getAvailableStopIds, routeGoesFromAToB } = require('../js/routing/availability');
+import { getAvailableStopIds, routeGoesFromAToB } from '../js/routing/availability';
+import { Caches, StopTime } from '../js/gtfs/cache';
 
-const mockCaches = {
+const mockStopTimes: StopTime[] = [
+    { trip_id: 'trip_1', stop_id: 'stopA', arrival_time: '08:00', departure_time: '08:00', stop_sequence: '1' },
+    { trip_id: 'trip_1', stop_id: 'stopB', arrival_time: '08:10', departure_time: '08:10', stop_sequence: '2' },
+    { trip_id: 'trip_1', stop_id: 'stopC', arrival_time: '08:20', departure_time: '08:20', stop_sequence: '3' },
+    { trip_id: 'trip_1', stop_id: 'stopE', arrival_time: '08:30', departure_time: '08:30', stop_sequence: '4' },
+    { trip_id: 'trip_2', stop_id: 'stopA', arrival_time: '09:00', departure_time: '09:00', stop_sequence: '1' },
+    { trip_id: 'trip_2', stop_id: 'stopC', arrival_time: '09:10', departure_time: '09:10', stop_sequence: '2' },
+    { trip_id: 'trip_3', stop_id: 'stopD', arrival_time: '10:00', departure_time: '10:00', stop_sequence: '1' },
+    { trip_id: 'trip_3', stop_id: 'stopE', arrival_time: '10:10', departure_time: '10:10', stop_sequence: '2' }
+];
+
+const mockCaches: Caches = {
+    routeTripIdsCache: {
+        'route_1': new Set(['trip_1']),
+        'route_2': new Set(['trip_2']),
+        'route_3': new Set(['trip_3'])
+    },
     stopTripIdsCache: {
         'stopA': new Set(['trip_1', 'trip_2']),
         'stopB': new Set(['trip_1']),
@@ -8,21 +25,15 @@ const mockCaches = {
         'stopD': new Set(['trip_3']),
         'stopE': new Set(['trip_1', 'trip_3'])
     },
+    tripToRouteCache: {
+        'trip_1': { trip_id: 'trip_1', route_id: 'route_1' },
+        'trip_2': { trip_id: 'trip_2', route_id: 'route_2' },
+        'trip_3': { trip_id: 'trip_3', route_id: 'route_3' }
+    },
     tripStopTimesCache: {
-        'trip_1': [
-            { stop_id: 'stopA', stop_sequence: '1' },
-            { stop_id: 'stopB', stop_sequence: '2' },
-            { stop_id: 'stopC', stop_sequence: '3' },
-            { stop_id: 'stopE', stop_sequence: '4' }
-        ],
-        'trip_2': [
-            { stop_id: 'stopA', stop_sequence: '1' },
-            { stop_id: 'stopC', stop_sequence: '2' }
-        ],
-        'trip_3': [
-            { stop_id: 'stopD', stop_sequence: '1' },
-            { stop_id: 'stopE', stop_sequence: '2' }
-        ]
+        'trip_1': mockStopTimes.filter(st => st.trip_id === 'trip_1'),
+        'trip_2': mockStopTimes.filter(st => st.trip_id === 'trip_2'),
+        'trip_3': mockStopTimes.filter(st => st.trip_id === 'trip_3')
     }
 };
 

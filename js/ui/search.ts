@@ -1,4 +1,7 @@
-function searchStops(stopsData, query, limit = 10) {
+import { Stop } from '../utils/time';
+import { Record } from '../gtfs/parser';
+
+export function searchStops(stopsData: Record[], query: string, limit = 10): Stop[] {
     if (!query || query.trim().length === 0) return [];
     
     const normalizedQuery = query.toLowerCase().trim();
@@ -15,16 +18,16 @@ function searchStops(stopsData, query, limit = 10) {
         })
         .slice(0, limit);
     
-    return results;
+    return results as Stop[];
 }
 
-let modalElement = null;
-let inputElement = null;
-let resultsElement = null;
-let onSelectCallback = null;
-let currentStopsData = [];
+let modalElement: HTMLElement | null = null;
+let inputElement: HTMLInputElement | null = null;
+let resultsElement: HTMLDivElement | null = null;
+let onSelectCallback: ((stop: Stop) => void) | null = null;
+let currentStopsData: Record[] = [];
 
-function createModal() {
+function createModal(): void {
     if (modalElement) return;
     
     modalElement = document.createElement('div');
@@ -83,11 +86,11 @@ function createModal() {
     
     document.body.appendChild(modalElement);
     
-    let debounceTimer;
+    let debounceTimer: ReturnType<typeof setTimeout>;
     inputElement.addEventListener('input', () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            renderResults(inputElement.value);
+            renderResults(inputElement!.value);
         }, 200);
     });
     
@@ -106,7 +109,7 @@ function createModal() {
     inputElement.focus();
 }
 
-function renderResults(query) {
+function renderResults(query: string): void {
     if (!resultsElement) return;
     
     resultsElement.innerHTML = '';
@@ -142,20 +145,20 @@ function renderResults(query) {
             closeSearchModal();
         });
         
-        resultsElement.appendChild(item);
+        resultsElement!.appendChild(item);
     });
 }
 
-function openSearchModal(stopsData, onSelect) {
+export function openSearchModal(stopsData: Record[], onSelect: (stop: Stop) => void): void {
     currentStopsData = stopsData;
     onSelectCallback = onSelect;
     
     createModal();
-    inputElement.value = '';
+    inputElement!.value = '';
     renderResults('');
 }
 
-function closeSearchModal() {
+export function closeSearchModal(): void {
     if (modalElement) {
         modalElement.remove();
         modalElement = null;
@@ -165,17 +168,10 @@ function closeSearchModal() {
     }
 }
 
-function handleKeyboardShortcut(e) {
+export function handleKeyboardShortcut(e: KeyboardEvent): boolean {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         return true;
     }
     return false;
 }
-
-module.exports = {
-    searchStops,
-    openSearchModal,
-    closeSearchModal,
-    handleKeyboardShortcut
-};

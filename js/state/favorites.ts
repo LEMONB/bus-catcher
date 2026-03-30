@@ -1,6 +1,16 @@
+import { Stop, Point } from '../utils/time';
+
+export interface Favorite {
+    id: string;
+    name: string;
+    stopA: Stop;
+    stopB: Stop;
+    homePoint: Point;
+}
+
 const FAVORITES_KEY = 'buscatcher_favorites';
 
-function getFavorites() {
+export function getFavorites(): Favorite[] {
     if (typeof localStorage === 'undefined') return [];
     
     const data = localStorage.getItem(FAVORITES_KEY);
@@ -13,7 +23,7 @@ function getFavorites() {
     }
 }
 
-function saveFavorite(favorite) {
+export function saveFavorite(favorite: Favorite): void {
     const favorites = getFavorites();
     
     const existingIndex = favorites.findIndex(f => f.id === favorite.id);
@@ -26,10 +36,8 @@ function saveFavorite(favorite) {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
 }
 
-function removeFavorite(id) {
+export function removeFavorite(id: string): void {
     const favorites = getFavorites();
     const filtered = favorites.filter(f => f.id !== id);
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(filtered));
 }
-
-module.exports = { getFavorites, saveFavorite, removeFavorite };

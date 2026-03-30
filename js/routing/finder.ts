@@ -1,14 +1,26 @@
-const { getWalkTime, timeToSeconds, calculateWaitTime } = require('../utils/time');
+import { Stop, Point, timeToSeconds, calculateWaitTime } from '../utils/time';
+import { Caches, Route, StopTime } from '../gtfs/cache';
 
 const WALKING_SPEED_KMH = 5;
 
-function findBuses(stopA, stopB, homePoint, caches, routesData, currentTime) {
+export interface BusOption {
+    route: Route | undefined;
+    waitTimeMinutes: number;
+    walkTimeMinutes: number;
+    canMakeIt: boolean;
+    homeStop: Stop;
+    destStop: Stop;
+    tripId: string;
+    allStopTimes: StopTime[];
+}
+
+export function findBuses(stopA: Stop, stopB: Stop, homePoint: Point, caches: Caches, routesData: Route[], currentTime: number): BusOption[] {
     const { stopTripIdsCache, tripToRouteCache, tripStopTimesCache } = caches;
     
     const stopATripIds = stopTripIdsCache[stopA.stop_id];
     if (!stopATripIds) return [];
     
-    const tripsByRoute = {};
+    const tripsByRoute: Record<string, string[]> = {};
     for (const tripId of stopATripIds) {
         const trip = tripToRouteCache[tripId];
         if (!trip) continue;
@@ -19,19 +31,19 @@ function findBuses(stopA, stopB, homePoint, caches, routesData, currentTime) {
         tripsByRoute[trip.route_id].push(tripId);
     }
     
-    const buses = [];
+    const buses: BusOption[] = [];
     
     for (const routeId in tripsByRoute) {
         const tripIds = tripsByRoute[routeId];
-        let bestTrip = null;
+        let bestTrip: { tripId: string; tripStops: StopTime[]; departureSecs: number } | null = null;
         let bestWaitTime = Infinity;
         
         for (const tripId of tripIds) {
             const tripStops = tripStopTimesCache[tripId];
             if (!tripStops) continue;
             
-            const idxA = tripStops.findIndex(st => st.stop_id === stopA.stop_id);
-            const idxB = tripStops.findIndex(st => st.stop_id === stopB.stop_id);
+            const idxA = tripStops.findIndex((st: StopTime) => st.stop_id === stopA.stop_id);
+            const idxB = tripStops.findIndex((st: StopTime) => st.stop_id === stopB.stop_id);
             
             if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
                 const departureTime = tripStops[idxA].arrival_time;
@@ -72,7 +84,7 @@ function findBuses(stopA, stopB, homePoint, caches, routesData, currentTime) {
     return buses;
 }
 
-function calculateWalkTime(stop, homePt) {
+function calculateWalkTime(stop: Stop, homePt: Point): number {
     const R = 6371;
     const dLat = (parseFloat(stop.stop_lat) - homePt.lat) * Math.PI / 180;
     const dLon = (parseFloat(stop.stop_lon) - homePt.lon) * Math.PI / 180;
@@ -84,5 +96,3 @@ function calculateWalkTime(stop, homePt) {
     
     return Math.round((dist / WALKING_SPEED_KMH) * 60);
 }
-
-module.exports = { findBuses };

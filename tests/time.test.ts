@@ -1,12 +1,12 @@
-const { getWalkTime, timeToSeconds, calculateWaitTime } = require('../js/utils/time');
+import { getWalkTime, timeToSeconds, calculateWaitTime, Stop, Point } from '../js/utils/time';
 
 const WALKING_SPEED_KMH = 5;
 
 describe('getWalkTime', () => {
-    const homePoint = { lat: 55.7558, lon: 37.6173 };
+    const homePoint: Point = { lat: 55.7558, lon: 37.6173 };
     
     test('calculates walk time for nearby stop', () => {
-        const stop = { stop_lat: '55.758', stop_lon: '37.619' };
+        const stop: Stop = { stop_id: '1', stop_name: 'Near', stop_lat: '55.758', stop_lon: '37.619' };
         
         const walkTime = getWalkTime(stop, homePoint);
         
@@ -15,8 +15,8 @@ describe('getWalkTime', () => {
     });
 
     test('walk time increases with distance', () => {
-        const nearStop = { stop_lat: '55.758', stop_lon: '37.619' };
-        const farStop = { stop_lat: '55.80', stop_lon: '37.70' };
+        const nearStop: Stop = { stop_id: '1', stop_name: 'Near', stop_lat: '55.758', stop_lon: '37.619' };
+        const farStop: Stop = { stop_id: '2', stop_name: 'Far', stop_lat: '55.80', stop_lon: '37.70' };
         
         const nearTime = getWalkTime(nearStop, homePoint);
         const farTime = getWalkTime(farStop, homePoint);
@@ -25,7 +25,7 @@ describe('getWalkTime', () => {
     });
 
     test('returns 0 when stop is same location', () => {
-        const stop = { stop_lat: '55.7558', stop_lon: '37.6173' };
+        const stop: Stop = { stop_id: '1', stop_name: 'Same', stop_lat: '55.7558', stop_lon: '37.6173' };
         
         const walkTime = getWalkTime(stop, homePoint);
         

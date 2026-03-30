@@ -1,4 +1,8 @@
-function parseCSV(text) {
+export interface Record {
+    [key: string]: string;
+}
+
+export function parseCSV(text: string): Record[] {
     const lines = text.trim().split('\n');
     if (lines.length === 0) return [];
     
@@ -7,7 +11,7 @@ function parseCSV(text) {
     return lines.slice(1).map(line => {
         if (!line.trim()) return null;
         
-        const values = [];
+        const values: string[] = [];
         let current = '';
         let inQuotes = false;
         
@@ -23,22 +27,22 @@ function parseCSV(text) {
         }
         values.push(current.replace(/"/g, ''));
         
-        const obj = {};
+        const obj: Record = {};
         headers.forEach((h, i) => obj[h] = values[i] || '');
         return obj;
-    }).filter(Boolean);
+    }).filter((v): v is Record => v !== null);
 }
 
-function parseCSVWithProgress(text, onProgress) {
+export function parseCSVWithProgress(text: string, onProgress: (percent: number) => void): Promise<Record[]> {
     return new Promise((resolve) => {
         setTimeout(() => {
             const lines = text.trim().split('\n');
             const headers = lines[0].split(',').map(h => h.replace(/"/g, ''));
             const total = lines.length - 1;
-            const result = [];
+            const result: Record[] = [];
             
             for (let i = 1; i < lines.length; i++) {
-                const values = [];
+                const values: string[] = [];
                 let current = '';
                 let inQuotes = false;
                 
@@ -54,7 +58,7 @@ function parseCSVWithProgress(text, onProgress) {
                 }
                 values.push(current.replace(/"/g, ''));
                 
-                const obj = {};
+                const obj: Record = {};
                 headers.forEach((h, idx) => obj[h] = values[idx] || '');
                 result.push(obj);
                 
@@ -68,5 +72,3 @@ function parseCSVWithProgress(text, onProgress) {
         }, 0);
     });
 }
-
-module.exports = { parseCSV, parseCSVWithProgress };

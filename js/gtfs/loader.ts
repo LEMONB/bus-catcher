@@ -3,13 +3,13 @@ const DB_VERSION = 2;
 const STORE_NAME = 'gtfs';
 const FILES_TO_STORE = ['stops.txt', 'routes.txt', 'trips.txt', 'stop_times_1.txt', 'stop_times_2.txt', 'stop_times_3.txt'];
 
-function openDB() {
+function openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
         request.onupgradeneeded = (event) => {
-            const db = event.target.result;
+            const db = (event.target as IDBOpenDBRequest).result;
             if (db.objectStoreNames.contains(STORE_NAME)) {
                 db.deleteObjectStore(STORE_NAME);
             }
@@ -18,7 +18,7 @@ function openDB() {
     });
 }
 
-async function hasGTFS() {
+export async function hasGTFS(): Promise<boolean> {
     try {
         const db = await openDB();
         return new Promise((resolve) => {
@@ -33,7 +33,7 @@ async function hasGTFS() {
     }
 }
 
-async function saveGTFSFile(filename, content) {
+async function saveGTFSFile(filename: string, content: string): Promise<void> {
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -44,7 +44,7 @@ async function saveGTFSFile(filename, content) {
     });
 }
 
-async function loadGTFSFile(filename) {
+async function loadGTFSFile(filename: string): Promise<string> {
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readonly');
@@ -55,7 +55,7 @@ async function loadGTFSFile(filename) {
     });
 }
 
-async function downloadGTFS(onProgress) {
+export async function downloadGTFS(onProgress: (text: string) => void): Promise<void> {
     onProgress('Загрузка GTFS данных из статических файлов...');
     
     const total = FILES_TO_STORE.length;
@@ -71,7 +71,7 @@ async function downloadGTFS(onProgress) {
     }
 }
 
-async function loadStopsAndRoutes(onProgress) {
+export async function loadStopsAndRoutes(onProgress: (text: string) => void): Promise<{ stopsText: string; routesText: string }> {
     const hasData = await hasGTFS();
     
     if (!hasData) {
@@ -90,7 +90,7 @@ async function loadStopsAndRoutes(onProgress) {
     return { stopsText, routesText };
 }
 
-async function loadStopTimes(onProgress) {
+export async function loadStopTimes(onProgress: (text: string) => void): Promise<{ stopTimesText: string; tripsText: string }> {
     onProgress('Загрузка stop_times_1.txt из кэша...');
     const chunk1 = await loadGTFSFile('stop_times_1.txt');
     
@@ -110,12 +110,3 @@ async function loadStopTimes(onProgress) {
     
     return { stopTimesText, tripsText };
 }
-
-module.exports = {
-    hasGTFS,
-    saveGTFSFile,
-    loadGTFSFile,
-    downloadGTFS,
-    loadStopsAndRoutes,
-    loadStopTimes
-};

@@ -1,17 +1,15 @@
-let getFavorites = null;
-let saveFavoriteFn = null;
-let removeFavoriteFn = null;
+import { Stop, Point } from '../utils/time';
+import { BusOption } from '../routing/finder';
+import { getFavorites, Favorite } from '../state/favorites';
 
-try {
-    const favoritesModule = require('../state/favorites');
-    getFavorites = favoritesModule.getFavorites;
-    saveFavoriteFn = favoritesModule.saveFavorite;
-    removeFavoriteFn = favoritesModule.removeFavorite;
-} catch (e) {
-    console.warn('Favorites module not available');
-}
-
-function renderBuses(buses, stopA, stopB, homePoint, onRouteClick, onFavoriteClick) {
+export function renderBuses(
+    buses: BusOption[],
+    stopA: Stop | null,
+    stopB: Stop | null,
+    homePoint: Point | null,
+    onRouteClick: ((bus: BusOption) => void) | null,
+    onFavoriteClick: (((stopA: Stop | null, stopB: Stop | null, homePoint: Point | null) => void) | null)
+): void {
     const container = document.getElementById('routes-container');
     if (!container) return;
     
@@ -22,14 +20,14 @@ function renderBuses(buses, stopA, stopB, homePoint, onRouteClick, onFavoriteCli
         return;
     }
     
-    const favorites = getFavorites ? getFavorites() : [];
-    const isFavorite = (fav) => fav.stopA?.stop_id === stopA?.stop_id && fav.stopB?.stop_id === stopB?.stop_id;
+    const favorites = getFavorites();
+    const isFavorite = (fav: Favorite) => fav.stopA?.stop_id === stopA?.stop_id && fav.stopB?.stop_id === stopB?.stop_id;
     
-    buses.forEach((bus, index) => {
+    buses.forEach((bus) => {
         const div = document.createElement('div');
         div.className = 'bus-item';
         div.onclick = (e) => {
-            if (e.target.classList.contains('favorite-btn')) return;
+            if ((e.target as HTMLElement).classList.contains('favorite-btn')) return;
             if (onRouteClick) onRouteClick(bus);
         };
         
@@ -45,7 +43,7 @@ function renderBuses(buses, stopA, stopB, homePoint, onRouteClick, onFavoriteCli
         `;
         
         const favBtn = div.querySelector('.favorite-btn');
-        favBtn.addEventListener('click', (e) => {
+        favBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             if (onFavoriteClick) onFavoriteClick(stopA, stopB, homePoint);
         });
@@ -54,13 +52,13 @@ function renderBuses(buses, stopA, stopB, homePoint, onRouteClick, onFavoriteCli
     });
 }
 
-function showEmptyMessage(message = 'Маршруты не найдены') {
+export function showEmptyMessage(message = 'Маршруты не найдены'): void {
     const container = document.getElementById('routes-container');
     if (!container) return;
     container.innerHTML = `<p style="color:#999;">${message}</p>`;
 }
 
-function updateUIForStep(step) {
+export function updateUIForStep(step: number): void {
     const stepHome = document.getElementById('step-home');
     const stepStopA = document.getElementById('step-stopA');
     const stepStopB = document.getElementById('step-stopB');
@@ -89,7 +87,7 @@ function updateUIForStep(step) {
     }
 }
 
-function showLoading(msg) {
+export function showLoading(msg: string): HTMLElement {
     const div = document.createElement('div');
     div.id = 'loading';
     div.innerHTML = msg;
@@ -98,7 +96,7 @@ function showLoading(msg) {
     return div;
 }
 
-function updateProgress(processed, total) {
+export function updateProgress(processed: number, total: number): void {
     const el = document.getElementById('loading');
     if (!el) return;
     const percent = Math.round((processed / total) * 100);
@@ -111,16 +109,7 @@ function updateProgress(processed, total) {
     `;
 }
 
-function hideLoading() {
+export function hideLoading(): void {
     const el = document.getElementById('loading');
     if (el) el.remove();
 }
-
-module.exports = {
-    renderBuses,
-    showEmptyMessage,
-    updateUIForStep,
-    showLoading,
-    updateProgress,
-    hideLoading
-};

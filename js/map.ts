@@ -1,14 +1,18 @@
-const Moscow_CENTER = [55.7558, 37.6173];
+import { Stop, Point } from './utils/time';
+import { Record } from './gtfs/parser';
+import L from 'leaflet';
 
-let map = null;
-let stopsLayer = null;
-let stopAMarker = null;
-let stopBMarker = null;
-let homeMarker = null;
-let routeLines = [];
-let stopsData = [];
+const Moscow_CENTER: [number, number] = [55.7558, 37.6173];
 
-function initMap(containerId = 'map') {
+let map: L.Map | null = null;
+let stopsLayer: L.LayerGroup | null = null;
+let stopAMarker: L.Marker | null = null;
+let stopBMarker: L.Marker | null = null;
+let homeMarker: L.Marker | null = null;
+let routeLines: L.Polyline[] = [];
+let stopsData: Record[] = [];
+
+export function initMap(containerId = 'map'): L.Map {
     if (map) return map;
     
     map = L.map(containerId).setView(Moscow_CENTER, 11);
@@ -19,21 +23,21 @@ function initMap(containerId = 'map') {
     return map;
 }
 
-function getMap() {
+export function getMap(): L.Map | null {
     return map;
 }
 
-function setStopsData(data) {
+export function setStopsData(data: Record[]): void {
     stopsData = data;
 }
 
-function highlightAvailableStops(availableStopIds) {
+export function highlightAvailableStops(availableStopIds: Set<string> | null): void {
     if (!map || !stopsData) return;
     
     if (stopsLayer) map.removeLayer(stopsLayer);
     stopsLayer = L.layerGroup().addTo(map);
     
-    let activeTooltip = null;
+    let activeTooltip: HTMLElement | null = null;
     
     stopsData.forEach(stop => {
         const lat = parseFloat(stop.stop_lat);
@@ -70,18 +74,18 @@ function highlightAvailableStops(availableStopIds) {
                 }
             });
             
-            stopsLayer.addLayer(marker);
+            stopsLayer!.addLayer(marker);
         }
     });
 }
 
-function renderStops() {
+export function renderStops(): void {
     if (!map) return;
     
     if (stopsLayer) map.removeLayer(stopsLayer);
     stopsLayer = L.layerGroup().addTo(map);
     
-    let activeTooltip = null;
+    let activeTooltip: HTMLElement | null = null;
     
     stopsData.forEach(stop => {
         const lat = parseFloat(stop.stop_lat);
@@ -116,12 +120,12 @@ function renderStops() {
                 }
             });
             
-            stopsLayer.addLayer(marker);
+            stopsLayer!.addLayer(marker);
         }
     });
 }
 
-function setHomeMarker(point) {
+export function setHomeMarker(point: Point): void {
     if (!map) return;
     
     if (homeMarker) map.removeLayer(homeMarker);
@@ -135,7 +139,7 @@ function setHomeMarker(point) {
     homeMarker.bindPopup('Отсюда выходите').openPopup();
 }
 
-function setStopAMarker(stop) {
+export function setStopAMarker(stop: Stop): void {
     if (!map) return;
     
     if (stopAMarker) map.removeLayer(stopAMarker);
@@ -149,7 +153,7 @@ function setStopAMarker(stop) {
     stopAMarker.bindPopup('Остановка: ' + stop.stop_name).openPopup();
 }
 
-function setStopBMarker(stop) {
+export function setStopBMarker(stop: Stop): void {
     if (!map) return;
     
     if (stopBMarker) map.removeLayer(stopBMarker);
@@ -163,8 +167,8 @@ function setStopBMarker(stop) {
     stopBMarker.bindPopup('Остановка: ' + stop.stop_name).openPopup();
 }
 
-function findNearestStop(lat, lon, maxDistanceKm = 0.5) {
-    let nearest = null;
+export function findNearestStop(lat: number, lon: number, maxDistanceKm = 0.5): Stop | null {
+    let nearest: Stop | null = null;
     let nearestDist = maxDistanceKm;
     
     for (const stop of stopsData) {
@@ -174,17 +178,17 @@ function findNearestStop(lat, lon, maxDistanceKm = 0.5) {
         
         if (dist < nearestDist) {
             nearestDist = dist;
-            nearest = stop;
+            nearest = stop as Stop;
         }
     }
     
     return nearest;
 }
 
-function showRouteOnMap(routeOption, homePoint) {
+export function showRouteOnMap(routeOption: { homeStop: Stop; destStop: Stop; allStopTimes?: Array<{ stop_id: string }> }, homePoint: Point): void {
     if (!map) return;
     
-    routeLines.forEach(l => map.removeLayer(l));
+    routeLines.forEach(l => map!.removeLayer(l));
     routeLines = [];
     
     const walkToStop = L.polyline([
@@ -205,11 +209,11 @@ function showRouteOnMap(routeOption, homePoint) {
         if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
             const relevantStops = routeOption.allStopTimes.slice(idxA, idxB + 1);
             
-            const busCoords = relevantStops.map(st => {
+            const busCoords: [number, number][] = relevantStops.map(st => {
                 const stop = stopsData.find(s => s.stop_id === st.stop_id);
                 if (!stop) return null;
                 return [parseFloat(stop.stop_lat), parseFloat(stop.stop_lon)];
-            }).filter(Boolean);
+            }).filter((c): c is [number, number] => c !== null);
             
             if (busCoords.length > 0) {
                 const busRoute = L.polyline(busCoords, {
@@ -233,7 +237,7 @@ function showRouteOnMap(routeOption, homePoint) {
     }).addTo(map);
     routeLines.push(walkFromStop);
     
-    const allCoords = [
+    const allCoords: [number, number][] = [
         [homePoint.lat, homePoint.lon],
         [parseFloat(routeOption.homeStop.stop_lat), parseFloat(routeOption.homeStop.stop_lon)],
         [parseFloat(routeOption.destStop.stop_lat), parseFloat(routeOption.destStop.stop_lon)],
@@ -243,7 +247,7 @@ function showRouteOnMap(routeOption, homePoint) {
     map.fitBounds(L.latLngBounds(allCoords), { padding: [50, 50] });
 }
 
-function clearMarkers() {
+export function clearMarkers(): void {
     if (map) {
         if (stopAMarker) { map.removeLayer(stopAMarker); stopAMarker = null; }
         if (stopBMarker) { map.removeLayer(stopBMarker); stopBMarker = null; }
@@ -251,20 +255,20 @@ function clearMarkers() {
     }
 }
 
-function clearRoutes() {
+export function clearRoutes(): void {
     if (map) {
-        routeLines.forEach(l => map.removeLayer(l));
+        routeLines.forEach(l => map!.removeLayer(l));
         routeLines = [];
     }
 }
 
-function setClickHandler(handler) {
+export function setClickHandler(handler: (e: L.LeafletMouseEvent) => void): void {
     if (map) {
         map.on('click', handler);
     }
 }
 
-function getDistanceBetweenPoints(lat1, lon1, lat2, lon2) {
+export function getDistanceBetweenPoints(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -274,19 +278,3 @@ function getDistanceBetweenPoints(lat1, lon1, lat2, lon2) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
 }
-
-module.exports = {
-    initMap,
-    getMap,
-    setStopsData,
-    renderStops,
-    highlightAvailableStops,
-    setHomeMarker,
-    setStopAMarker,
-    setStopBMarker,
-    findNearestStop,
-    showRouteOnMap,
-    clearMarkers,
-    clearRoutes,
-    setClickHandler
-};

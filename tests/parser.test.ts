@@ -1,4 +1,4 @@
-const { parseCSV } = require('../js/gtfs/parser');
+import { parseCSV } from '../js/gtfs/parser';
 
 describe('parseCSV', () => {
     test('parses simple CSV', () => {

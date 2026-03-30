@@ -1,6 +1,8 @@
-function getAvailableStopIds(stopAId, caches) {
+import { Caches, StopTime } from '../gtfs/cache';
+
+export function getAvailableStopIds(stopAId: string, caches: Caches): Set<string> {
     const { stopTripIdsCache, tripStopTimesCache } = caches;
-    const availableStops = new Set();
+    const availableStops = new Set<string>();
     
     const tripIds = stopTripIdsCache[stopAId];
     if (!tripIds) return availableStops;
@@ -9,7 +11,7 @@ function getAvailableStopIds(stopAId, caches) {
         const tripStops = tripStopTimesCache[tripId];
         if (!tripStops) continue;
         
-        const idxA = tripStops.findIndex(st => st.stop_id === stopAId);
+        const idxA = tripStops.findIndex((st: StopTime) => st.stop_id === stopAId);
         if (idxA < 0) continue;
         
         for (let i = idxA + 1; i < tripStops.length; i++) {
@@ -20,7 +22,7 @@ function getAvailableStopIds(stopAId, caches) {
     return availableStops;
 }
 
-function routeGoesFromAToB(stopAId, stopBId, caches) {
+export function routeGoesFromAToB(stopAId: string, stopBId: string, caches: Caches): boolean {
     if (stopAId === stopBId) return false;
     
     const { stopTripIdsCache, tripStopTimesCache } = caches;
@@ -32,8 +34,8 @@ function routeGoesFromAToB(stopAId, stopBId, caches) {
         const tripStops = tripStopTimesCache[tripId];
         if (!tripStops) continue;
         
-        const idxA = tripStops.findIndex(st => st.stop_id === stopAId);
-        const idxB = tripStops.findIndex(st => st.stop_id === stopBId);
+        const idxA = tripStops.findIndex((st: StopTime) => st.stop_id === stopAId);
+        const idxB = tripStops.findIndex((st: StopTime) => st.stop_id === stopBId);
         
         if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
             return true;
@@ -42,5 +44,3 @@ function routeGoesFromAToB(stopAId, stopBId, caches) {
     
     return false;
 }
-
-module.exports = { getAvailableStopIds, routeGoesFromAToB };

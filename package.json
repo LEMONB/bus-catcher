@@ -4,9 +4,11 @@
   "description": "Bus arrival time checker for Moscow",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
-    "build": "browserify js/app.js -o js/bundle.js",
-    "serve": "npx http-server -p 3000 -c-1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vite build",
+    "serve": "vite",
+    "typecheck": "tsc --noEmit",
     "download-gtfs": "node scripts/download-gtfs.js"
   },
   "keywords": [
@@ -18,8 +20,13 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^25.5.0",
     "browserify": "^17.0.1",
-    "jest": "^30.3.0"
+    "jest": "^30.3.0",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",

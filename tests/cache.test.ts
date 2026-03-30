@@ -1,18 +1,18 @@
-const { buildCaches } = require('../js/gtfs/cache');
+import { buildCaches, Trip, StopTime } from '../js/gtfs/cache';
 
-const mockTrips = [
+const mockTrips: Trip[] = [
     { trip_id: 'trip_1', route_id: 'route_525' },
     { trip_id: 'trip_2', route_id: 'route_525' },
     { trip_id: 'trip_3', route_id: 'route_32' }
 ];
 
-const mockStopTimes = [
-    { trip_id: 'trip_1', stop_id: 'stopA', arrival_time: '08:00:00', stop_sequence: '1' },
-    { trip_id: 'trip_1', stop_id: 'stopB', arrival_time: '08:15:00', stop_sequence: '2' },
-    { trip_id: 'trip_1', stop_id: 'stopC', arrival_time: '08:30:00', stop_sequence: '3' },
-    { trip_id: 'trip_2', stop_id: 'stopA', arrival_time: '09:00:00', stop_sequence: '1' },
-    { trip_id: 'trip_3', stop_id: 'stopC', arrival_time: '10:00:00', stop_sequence: '1' },
-    { trip_id: 'trip_3', stop_id: 'stopA', arrival_time: '10:30:00', stop_sequence: '2' }
+const mockStopTimes: StopTime[] = [
+    { trip_id: 'trip_1', stop_id: 'stopA', arrival_time: '08:00:00', departure_time: '08:00:00', stop_sequence: '1' },
+    { trip_id: 'trip_1', stop_id: 'stopB', arrival_time: '08:15:00', departure_time: '08:15:00', stop_sequence: '2' },
+    { trip_id: 'trip_1', stop_id: 'stopC', arrival_time: '08:30:00', departure_time: '08:30:00', stop_sequence: '3' },
+    { trip_id: 'trip_2', stop_id: 'stopA', arrival_time: '09:00:00', departure_time: '09:00:00', stop_sequence: '1' },
+    { trip_id: 'trip_3', stop_id: 'stopC', arrival_time: '10:00:00', departure_time: '10:00:00', stop_sequence: '1' },
+    { trip_id: 'trip_3', stop_id: 'stopA', arrival_time: '10:30:00', departure_time: '10:30:00', stop_sequence: '2' }
 ];
 
 describe('buildCaches', () => {

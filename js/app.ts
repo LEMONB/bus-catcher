@@ -1,24 +1,29 @@
-const { loadStopsAndRoutes, loadStopTimes } = require('./gtfs/loader');
-const { parseCSV, parseCSVWithProgress } = require('./gtfs/parser');
-const { buildCaches } = require('./gtfs/cache');
-const { findBuses } = require('./routing/finder');
-const { getAvailableStopIds, routeGoesFromAToB } = require('./routing/availability');
-const { getState, setStopA, setStopB, setHomePoint, reset: resetStore, loadFromURL, getStep } = require('./state/store');
-const { initMap, setStopsData, renderStops, highlightAvailableStops, setHomeMarker, setStopAMarker, setStopBMarker, findNearestStop, showRouteOnMap, clearMarkers, clearRoutes, setClickHandler } = require('./map');
-const { renderBuses, updateUIForStep, showLoading, hideLoading } = require('./ui/bus-list');
-const { openSearchModal, handleKeyboardShortcut, closeSearchModal } = require('./ui/search');
-const { getFavorites, saveFavorite, removeFavorite } = require('./state/favorites');
+import { loadStopsAndRoutes, loadStopTimes } from './gtfs/loader';
+import { parseCSV, parseCSVWithProgress, Record } from './gtfs/parser';
+import { buildCaches, Caches } from './gtfs/cache';
+import { findBuses, BusOption } from './routing/finder';
+import { getAvailableStopIds } from './routing/availability';
+import { getState, setStopA, setStopB, setHomePoint, reset as resetStore, loadFromURL, getStep } from './state/store';
+import { 
+    initMap, setStopsData, renderStops, highlightAvailableStops, 
+    setHomeMarker, setStopAMarker, setStopBMarker, findNearestStop, 
+    showRouteOnMap, clearMarkers, clearRoutes, setClickHandler 
+} from './map';
+import { renderBuses, updateUIForStep, showLoading, hideLoading } from './ui/bus-list';
+import { openSearchModal, handleKeyboardShortcut } from './ui/search';
+import { getFavorites, saveFavorite, removeFavorite, Favorite } from './state/favorites';
+import { Stop, Point } from './utils/time';
 
-let stopsData = [];
-let routesData = [];
-let stopTimesData = [];
-let tripsData = [];
-let caches = null;
-let loadingEl = null;
-let availableStopIds = null;
-let loadingTimeout = null;
+let stopsData: Record[] = [];
+let routesData: Record[] = [];
+let stopTimesData: Record[] = [];
+let tripsData: Record[] = [];
+let caches: Caches | null = null;
+let loadingEl: HTMLElement | null = null;
+let availableStopIds: Set<string> | null = null;
+let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
 
-function showCornerLoader(text = 'Загрузка...') {
+function showCornerLoader(text = 'Загрузка...'): void {
     const loader = document.getElementById('corner-loader');
     if (loader) {
         loader.classList.remove('hidden', 'error');
@@ -27,7 +32,7 @@ function showCornerLoader(text = 'Загрузка...') {
     }
 }
 
-function hideCornerLoader() {
+function hideCornerLoader(): void {
     const loader = document.getElementById('corner-loader');
     if (loader) {
         loader.classList.add('hidden');
@@ -38,7 +43,7 @@ function hideCornerLoader() {
     }
 }
 
-function showCornerError(text) {
+function showCornerError(text: string): void {
     const loader = document.getElementById('corner-loader');
     if (loader) {
         loader.classList.remove('hidden');
@@ -48,14 +53,14 @@ function showCornerError(text) {
     }
 }
 
-function setLoadingTimeout(onTimeout) {
+function setLoadingTimeout(onTimeout: () => void): void {
     if (loadingTimeout) clearTimeout(loadingTimeout);
     loadingTimeout = setTimeout(() => {
         onTimeout();
     }, 10000);
 }
 
-async function loadGTFS(onProgress) {
+async function loadGTFS(): Promise<void> {
     showCornerLoader('Загрузка данных...');
     
     setLoadingTimeout(() => {
@@ -79,11 +84,11 @@ async function loadGTFS(onProgress) {
         hideCornerLoader();
     } catch (e) {
         console.error('Error loading GTFS:', e);
-        showCornerError('Ошибка загрузки: ' + e.message);
+        showCornerError('Ошибка загрузки: ' + (e as Error).message);
     }
 }
 
-async function loadSchedule(onProgress) {
+async function loadSchedule(): Promise<void> {
     if (stopTimesData.length > 0) return;
     
     showCornerLoader('Загрузка расписания...');
@@ -119,7 +124,7 @@ async function loadSchedule(onProgress) {
             }
         });
         
-        caches = buildCaches(tripsData, stopTimesData);
+        caches = buildCaches(tripsData as any, stopTimesData as any);
         
         console.log('Schedule loaded:', {
             stopTimes: stopTimesData.length,
@@ -129,7 +134,7 @@ async function loadSchedule(onProgress) {
         hideCornerLoader();
     } catch (e) {
         console.error('Error loading schedule:', e);
-        showCornerError('Ошибка загрузки расписания: ' + e.message);
+        showCornerError('Ошибка загрузки расписания: ' + (e as Error).message);
         throw e;
     }
     
@@ -137,7 +142,7 @@ async function loadSchedule(onProgress) {
     loadingEl = null;
 }
 
-function handleMapClick(e) {
+function handleMapClick(e: L.LeafletMouseEvent): void {
     const state = getState();
     const lat = e.latlng.lat;
     const lon = e.latlng.lng;
@@ -158,14 +163,14 @@ function handleMapClick(e) {
     }
 }
 
-function setHomePointInternal(lat, lon) {
-    const point = { lat, lon };
+function setHomePointInternal(lat: number, lon: number): void {
+    const point: Point = { lat, lon };
     setHomePoint(point);
     setHomeMarker(point);
     updateUIForStep(getStep());
 }
 
-function selectStopA(lat, lon) {
+function selectStopA(lat: number, lon: number): void {
     const stop = findNearestStop(lat, lon);
     
     if (!stop) {
@@ -173,23 +178,23 @@ function selectStopA(lat, lon) {
         return;
     }
     
-    setStopA(stop);
-    setStopAMarker(stop);
+    setStopA(stop as Stop);
+    setStopAMarker(stop as Stop);
     
     if (stopTimesData.length === 0) {
         showCornerLoader('Загрузка расписания...');
         loadSchedule().then(() => {
             hideCornerLoader();
-            updateUIForStepAfterStopA(stop);
+            updateUIForStepAfterStopA(stop as Stop);
         });
     } else {
-        updateUIForStepAfterStopA(stop);
+        updateUIForStepAfterStopA(stop as Stop);
     }
 }
 
-function updateUIForStepAfterStopA(stop) {
+function updateUIForStepAfterStopA(stop: Stop): void {
     if (!caches) {
-        caches = buildCaches(tripsData, stopTimesData);
+        caches = buildCaches(tripsData as any, stopTimesData as any);
     }
     availableStopIds = getAvailableStopIds(stop.stop_id, caches);
     
@@ -198,7 +203,7 @@ function updateUIForStepAfterStopA(stop) {
     updateUIForStep(getStep());
 }
 
-function selectStopB(lat, lon) {
+function selectStopB(lat: number, lon: number): void {
     const stop = findNearestStop(lat, lon);
     
     if (!stop) {
@@ -207,13 +212,13 @@ function selectStopB(lat, lon) {
     }
     
     const state = getState();
-    if (stop.stop_id === state.stopA.stop_id) {
+    if (stop.stop_id === state.stopA?.stop_id) {
         alert('Выберите другую остановку.');
         return;
     }
     
     if (!caches) {
-        caches = buildCaches(tripsData, stopTimesData);
+        caches = buildCaches(tripsData as any, stopTimesData as any);
     }
     
     if (availableStopIds && !availableStopIds.has(stop.stop_id)) {
@@ -221,8 +226,8 @@ function selectStopB(lat, lon) {
         return;
     }
     
-    setStopB(stop);
-    setStopBMarker(stop);
+    setStopB(stop as Stop);
+    setStopBMarker(stop as Stop);
     
     renderStops();
     
@@ -239,36 +244,31 @@ function selectStopB(lat, lon) {
     }
 }
 
-function findAndDisplayBuses() {
+function findAndDisplayBuses(): void {
     const state = getState();
     if (!state.stopA || !state.stopB || !state.homePoint) return;
     
     if (!caches) {
-        caches = buildCaches(tripsData, stopTimesData);
+        caches = buildCaches(tripsData as any, stopTimesData as any);
     }
     
     const now = new Date();
     const currentTime = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
     
-    const buses = findBuses(state.stopA, state.stopB, state.homePoint, caches, routesData, currentTime);
+    const buses = findBuses(state.stopA, state.stopB, state.homePoint, caches, routesData as any, currentTime);
     
     if (buses.length > 0) {
         showRouteOnMap(buses[0], state.homePoint);
     }
     
-    renderBuses(buses, state.stopA, state.stopB, state.homePoint, (bus) => {
-        showRouteOnMap(bus, state.homePoint);
-    }, (stopA, stopB, homePoint) => {
+    renderBuses(buses, state.stopA, state.stopB, state.homePoint, (bus: BusOption) => {
+        showRouteOnMap(bus, state.homePoint!);
+    }, (stopA: Stop | null, stopB: Stop | null, homePoint: Point | null) => {
         toggleFavorite(stopA, stopB, homePoint);
     });
 }
 
-function handleRouteClick(bus) {
-    const state = getState();
-    showRouteOnMap(bus, state.homePoint);
-}
-
-function toggleFavorite(stopA, stopB, homePoint) {
+function toggleFavorite(stopA: Stop | null, stopB: Stop | null, homePoint: Point | null): void {
     const favorites = getFavorites();
     const existingIndex = favorites.findIndex(f => f.stopA?.stop_id === stopA?.stop_id && f.stopB?.stop_id === stopB?.stop_id);
     
@@ -279,9 +279,9 @@ function toggleFavorite(stopA, stopB, homePoint) {
         saveFavorite({
             id: 'fav_' + Date.now(),
             name: name,
-            stopA: stopA,
-            stopB: stopB,
-            homePoint: homePoint
+            stopA: stopA!,
+            stopB: stopB!,
+            homePoint: homePoint!
         });
     }
     
@@ -289,7 +289,7 @@ function toggleFavorite(stopA, stopB, homePoint) {
     findAndDisplayBuses();
 }
 
-function renderFavorites() {
+function renderFavorites(): void {
     const container = document.getElementById('favorites-container');
     const section = document.getElementById('favorites-section');
     if (!container || !section) return;
@@ -312,11 +312,11 @@ function renderFavorites() {
             <button class="favorite-delete" title="Удалить">✕</button>
         `;
         
-        div.querySelector('.favorite-name').addEventListener('click', () => {
+        div.querySelector('.favorite-name')?.addEventListener('click', () => {
             loadFavoriteRoute(fav);
         });
         
-        div.querySelector('.favorite-delete').addEventListener('click', (e) => {
+        div.querySelector('.favorite-delete')?.addEventListener('click', (e) => {
             e.stopPropagation();
             removeFavorite(fav.id);
             renderFavorites();
@@ -326,9 +326,9 @@ function renderFavorites() {
     });
 }
 
-function loadFavoriteRoute(fav) {
-    const stopA = stopsData.find(s => s.stop_id === fav.stopA?.stop_id);
-    const stopB = stopsData.find(s => s.stop_id === fav.stopB?.stop_id);
+function loadFavoriteRoute(fav: Favorite): void {
+    const stopA = stopsData.find(s => s.stop_id === fav.stopA?.stop_id) as Stop | undefined;
+    const stopB = stopsData.find(s => s.stop_id === fav.stopB?.stop_id) as Stop | undefined;
     
     if (!stopA || !stopB) {
         alert('Остановки из избранного больше не доступны');
@@ -343,8 +343,8 @@ function loadFavoriteRoute(fav) {
     selectStopBByStop(stopB);
 }
 
-function openStopSearch() {
-    openSearchModal(stopsData, (stop) => {
+function openStopSearch(): void {
+    openSearchModal(stopsData, (stop: Stop) => {
         const state = getState();
         
         if (!state.homePoint) {
@@ -360,17 +360,7 @@ function openStopSearch() {
     });
 }
 
-function selectStopByStop(stop) {
-    const state = getState();
-    
-    if (!state.stopA) {
-        selectStopAByStop(stop);
-    } else if (!state.stopB) {
-        selectStopBByStop(stop);
-    }
-}
-
-function selectStopAByStop(stop) {
+function selectStopAByStop(stop: Stop): void {
     setStopA(stop);
     setStopAMarker(stop);
     
@@ -385,10 +375,10 @@ function selectStopAByStop(stop) {
     }
 }
 
-function selectStopBByStop(stop) {
+function selectStopBByStop(stop: Stop): void {
     const state = getState();
     
-    if (stop.stop_id === state.stopA.stop_id) {
+    if (stop.stop_id === state.stopA?.stop_id) {
         alert('Выберите другую остановку.');
         return;
     }
@@ -416,7 +406,7 @@ function selectStopBByStop(stop) {
     }
 }
 
-function init() {
+function init(): void {
     initMap('map');
     setClickHandler(handleMapClick);
     
@@ -455,14 +445,14 @@ function init() {
         }
     });
     
-    document.getElementById('reset-btn').addEventListener('click', () => {
+    document.getElementById('reset-btn')?.addEventListener('click', () => {
         reset();
     });
     
     renderFavorites();
 }
 
-function reset() {
+function reset(): void {
     resetStore();
     clearMarkers();
     clearRoutes();
@@ -484,4 +474,4 @@ if (typeof window !== 'undefined') {
     window.addEventListener('DOMContentLoaded', init);
 }
 
-module.exports = { init, loadGTFS, loadSchedule, findAndDisplayBuses, reset };
+export { init, loadGTFS, loadSchedule, findAndDisplayBuses, reset };

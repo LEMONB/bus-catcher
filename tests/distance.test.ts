@@ -1,4 +1,4 @@
-const { getDistanceBetweenPoints } = require('../js/utils/distance');
+import { getDistanceBetweenPoints } from '../js/utils/distance';
 
 describe('getDistanceBetweenPoints', () => {
     test('returns 0 for same coordinates', () => {

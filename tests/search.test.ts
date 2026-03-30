@@ -1,6 +1,7 @@
-const { searchStops } = require('../js/ui/search');
+import { searchStops } from '../js/ui/search';
+import { Record } from '../js/gtfs/parser';
 
-const mockStops = [
+const mockStops: Record[] = [
     { stop_id: '1', stop_name: 'Метро «Владыкино»', stop_lat: '55.8', stop_lon: '37.6' },
     { stop_id: '2', stop_name: 'Метро «Отрадное»', stop_lat: '55.85', stop_lon: '37.65' },
     { stop_id: '3', stop_name: 'Владыкино', stop_lat: '55.81', stop_lon: '37.61' },
@@ -41,9 +42,9 @@ describe('searchStops', () => {
     });
 
     test('filters out stops without required fields', () => {
-        const stopsWithBad = [
+        const stopsWithBad: Record[] = [
             { stop_id: '1', stop_name: 'Valid', stop_lat: '55.8', stop_lon: '37.6' },
-            { stop_id: '2', stop_name: 'No coords' },
+            { stop_id: '2', stop_name: 'No coords', stop_lat: '', stop_lon: '' },
             { stop_id: '3', stop_name: 'Valid 2', stop_lat: '55.9', stop_lon: '37.7' }
         ];
         

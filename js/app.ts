@@ -9,7 +9,7 @@ import {
     setHomeMarker, setStopAMarker, setStopBMarker, findNearestStop, 
     showRouteOnMap, clearMarkers, clearRoutes, setClickHandler 
 } from './map';
-import { renderBuses, updateUIForStep, showLoading, hideLoading } from './ui/bus-list';
+import { renderBuses, updateUIForStep } from './ui/bus-list';
 import { openSearchModal, handleKeyboardShortcut } from './ui/search';
 import { getFavorites, saveFavorite, removeFavorite, Favorite } from './state/favorites';
 import { Stop, Point } from './utils/time';

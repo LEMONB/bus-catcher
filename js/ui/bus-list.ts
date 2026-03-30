@@ -52,12 +52,6 @@ export function renderBuses(
     });
 }
 
-export function showEmptyMessage(message = 'Маршруты не найдены'): void {
-    const container = document.getElementById('routes-container');
-    if (!container) return;
-    container.innerHTML = `<p style="color:#999;">${message}</p>`;
-}
-
 export function updateUIForStep(step: number): void {
     const stepHome = document.getElementById('step-home');
     const stepStopA = document.getElementById('step-stopA');
@@ -85,31 +79,4 @@ export function updateUIForStep(step: number): void {
         if (stepStopB) stepStopB.classList.add('hidden');
         if (routesList) routesList.classList.remove('hidden');
     }
-}
-
-export function showLoading(msg: string): HTMLElement {
-    const div = document.createElement('div');
-    div.id = 'loading';
-    div.innerHTML = msg;
-    div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:18px;z-index:1000;';
-    document.body.appendChild(div);
-    return div;
-}
-
-export function updateProgress(processed: number, total: number): void {
-    const el = document.getElementById('loading');
-    if (!el) return;
-    const percent = Math.round((processed / total) * 100);
-    el.innerHTML = `
-        <div>Поиск маршрутов...</div>
-        <div style="margin-top:10px;font-size:14px;color:#666;">Обработано ${processed} из ${total} (${percent}%)</div>
-        <div style="margin-top:10px;width:200px;height:8px;background:#eee;border-radius:4px;overflow:hidden;">
-            <div style="width:${percent}%;height:100%;background:#4CAF50;transition:width 0.2s;"></div>
-        </div>
-    `;
-}
-
-export function hideLoading(): void {
-    const el = document.getElementById('loading');
-    if (el) el.remove();
 }

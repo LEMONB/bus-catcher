@@ -2,7 +2,6 @@
   "name": "buscatcher",
   "version": "1.0.0",
   "description": "Bus arrival time checker for Moscow",
-  "main": "index.js",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,12 +17,10 @@
   ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "@types/leaflet": "^1.9.21",
     "@types/node": "^25.5.0",
-    "browserify": "^17.0.1",
-    "jest": "^30.3.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"

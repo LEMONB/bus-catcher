@@ -122,10 +122,6 @@ export function loadFromURL(stopsData: Record[], callbacks: Callbacks): State {
     return state;
 }
 
-export function subscribe(callback: (state: State) => void): void {
-    onStateChange = callback;
-}
-
 export function getStep(): number {
     if (state.homePoint && state.stopA && state.stopB) return 4;
     if (state.homePoint && state.stopA) return 3;

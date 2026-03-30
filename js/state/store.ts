@@ -30,17 +30,19 @@ function setState(changes: Partial<State>): State {
 }
 
 export function setStopA(stop: Stop | null): void {
-    setState({ stopA: stop, step: stop ? 3 : state.step });
+    const newStep = stop ? 3 : (state.homePoint ? 2 : 1);
+    setState({ stopA: stop, step: newStep });
     updateURL();
 }
 
 export function setStopB(stop: Stop | null): void {
-    setState({ stopB: stop, step: stop ? 4 : state.step });
+    const newStep = stop ? 4 : (state.stopA ? 3 : (state.homePoint ? 2 : 1));
+    setState({ stopB: stop, step: newStep });
     updateURL();
 }
 
 export function setHomePoint(point: Point | null): void {
-    setState({ homePoint: point, step: point ? 2 : state.step });
+    setState({ homePoint: point, step: point ? 2 : 1 });
     updateURL();
 }
 

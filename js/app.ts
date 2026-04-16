@@ -138,7 +138,6 @@ async function loadSchedule(): Promise<void> {
         throw e;
     }
     
-    hideLoading();
     loadingEl = null;
 }
 
@@ -229,7 +228,7 @@ function selectStopB(lat: number, lon: number): void {
     setStopB(stop as Stop);
     setStopBMarker(stop as Stop);
     
-    renderStops();
+    highlightAvailableStops(availableStopIds);
     
     if (stopTimesData.length === 0) {
         showCornerLoader('Загрузка расписания...');
@@ -391,7 +390,7 @@ function selectStopBByStop(stop: Stop): void {
     setStopB(stop);
     setStopBMarker(stop);
     
-    renderStops();
+    highlightAvailableStops(availableStopIds);
     
     if (stopTimesData.length === 0) {
         showCornerLoader('Загрузка расписания...');

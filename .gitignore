@@ -26,6 +26,12 @@ coverage/
 .env
 .env.local
 
+# Database
+*.db
+
+# Temp files
+tmp/
+
 # GTFS Data
 data/*.zip
 data/*.geojson

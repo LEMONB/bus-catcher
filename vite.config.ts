@@ -24,4 +24,12 @@ export default defineConfig({
       "@": "/js",
     },
   },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+    },
+  },
 });

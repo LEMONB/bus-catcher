@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+    container_name: buscatcher-api
+    restart: unless-stopped
+    environment:
+      - PORT=3001
+      - DATA_DIR=/app/data
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-buscatcher-admin}
+    volumes:
+      - gtfs-data:/app/data
+    networks:
+      - buscatcher-network
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: buscatcher-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    networks:
+      - buscatcher-network
+
+networks:
+  buscatcher-network:
+    name: buscatcher-network
+
+volumes:
+  gtfs-data:

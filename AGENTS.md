@@ -1,5 +1,23 @@
 # Разработка BusCatcher
 
+Веб-приложение для проверки времени прибытия автобусов в Москве. PWA с Leaflet картой и GTFS данными.
+
+## Команды
+
+```
+npm run serve       # Dev server (Vite) → localhost:3000
+npm run build       # Build → dist/bundle.js (iife, leaflet external/CDN)
+npm test            # Run all tests (vitest run)
+npm run test:watch  # Watch mode
+npm run test:coverage # With coverage
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint js/
+npm run lint:fix    # eslint --fix
+npm run download-gtfs # Download Moscow GTFS data
+```
+
+**Порядок проверки:** `lint → typecheck → test`
+
 ## Подход: TDD
 
 1. **Сначала тест** — пишем тест ДО реализации
@@ -9,42 +27,59 @@
 
 ## Правила тестирования
 
-- **Не копипастить код в тесты** — если нужно протестировать логику, она должна быть в отдельном модуле с публичным API
-- **Тестировать через публичные методы** — модуль должен экспортировать функции для тестирования
-- **Если не можем протестировать — код не нужен** — признак проблем в архитектуре
+- **Не копипастить код в тесты** — логика должна быть в отдельном модуле с публичным API
+- **Тестировать через публичные методы** — модуль экспортирует функции для тестирования
+- **Если не можем протестировать — код не нужен**
+- **Vitest environment: `node`** — `tests/setup.ts` мокает `window`, `history`, `location`
+- **Coverage исключает:** `app.ts`, `index.ts`, `map.ts` (UI/entry points)
+- **Один тест-файл = один модуль**
 
-## Структура проекта
+## Архитектура
 
 ```
-js/                      # Модули с публичным API
-├── index.js             # Точка входа
-├── map.js               # Leaflet карта, маркеры
+js/                      # TypeScript модули
+├── index.ts             # Entry — импортирует все модули
+├── app.ts               # Главная логика: загрузка GTFS, map clicks, UI flow
+├── map.ts               # Leaflet карта, маркеры, рендеринг
 ├── gtfs/
-│   ├── loader.js        # Загрузка GTFS из IndexedDB
-│   ├── parser.js        # CSV парсинг
-│   └── cache.js         # Кэши trips/stopTimes
+│   ├── loader.ts        # Загрузка GTFS файлов (fetch)
+│   ├── parser.ts        # CSV парсинг (с прогрессом для больших файлов)
+│   └── cache.ts         # Кэши trips/stopTimes для быстрого поиска
 ├── routing/
-│   ├── finder.js        # Поиск маршрутов A→B
-│   └── availability.js  # Фильтрация доступных остановок
+│   ├── finder.ts        # Поиск маршрутов A→B
+│   └── availability.ts  # Фильтрация доступных остановок
 ├── state/
-│   ├── store.js         # URL state
-│   └── favorites.js     # Избранное
+│   ├── store.ts         # URL state (?stopA=&stopB=&home=)
+│   └── favorites.ts     # Избранное (localStorage)
 ├── ui/
-│   ├── search.js        # Поиск остановок
-│   └── bus-list.js      # Рендеринг списка
+│   ├── search.ts        # Поиск остановок
+│   └── bus-list.ts      # Рендеринг списка автобусов
 └── utils/
-    ├── distance.js      # Геометрия
-    └── time.js          # Время
+    ├── distance.ts      # Геометрия (Haversine)
+    └── time.ts          # Время, типы Stop/Point
 
-tests/                   # Один тест-файл = один модуль
-├── parser.test.js
-├── distance.test.js
-├── cache.test.js
-├── finder.test.js
-├── availability.test.js
-├── favorites.test.js
-└── integration.test.js
+tests/                   # Тесты
+├── setup.ts             # Mock window/history для node env
+├── *.test.ts            # Unit тесты по модулям
+└── vitest.d.ts          # Type declarations
+
+data/gtfs/               # GTFS данные (stops.txt, routes.txt, trips.txt, stop_times_*.txt)
 ```
+
+## Важные детали
+
+- **Leaflet загружается через CDN** (не бандлится) — `vite.config.ts` external: `leaflet`
+- **GTFS данные обязательны** — без `data/gtfs/*.txt` приложение не загрузится
+- **stop_times разбит на 3 файла** (`stop_times_1.txt`, `stop_times_2.txt`, `stop_times_3.txt`) — большие данные
+- **`parseCSVWithProgress`** — асинхронный парсер с callback для прогресс-бара
+- **User flow:** homePoint → stopA → stopB → список автобусов (4 шага)
+- **State сохраняется в URL** — `loadFromURL` восстанавливает состояние при загрузке
+
+## ESLint
+
+- TypeScript-ESLint с `@typescript-eslint/stylistic`
+- Отключены: `consistent-indexed-object-style`, `no-explicit-any`
+- Игнорирует: `**/bundle.js`, `**/dist/**`
 
 ## Коммиты
 

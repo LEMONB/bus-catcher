@@ -1,0 +1,37 @@
+name: Rollback Pipeline
+
+on: [workflow_dispatch]
+
+jobs:
+  rollback-images:
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Login to Docker Hub
+        run: crane auth login docker.io -u "${{ vars.DOCKER_HUB_LOGIN }}" -p "${{ secrets.DOCKER_HUB_PASSWORD }}"
+
+      - name: Copy backend prev as latest
+        run: crane copy quietjbs/sha256:buscatcher-backend-prev quietjbs/sha256:buscatcher-backend-latest
+
+      - name: Copy frontend prev as latest
+        run: crane copy quietjbs/sha256:buscatcher-frontend-prev quietjbs/sha256:buscatcher-frontend-latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production
+    needs: rollback-images
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Copy deployment files to production
+        run: scp -o StrictHostKeyChecking=no -p ./docker-compose.prod.yml ./deploy.sh root@${{ secrets.VPS_HOST }}:/root/buscatcher/
+
+      - name: Deploy on production server
+        run: ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "cd /root/buscatcher; chmod +x deploy.sh; ./deploy.sh"

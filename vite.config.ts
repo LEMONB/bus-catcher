@@ -1,27 +1,35 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
 export default defineConfig({
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     emptyOutDir: true,
     lib: {
-      entry: 'js/index.ts',
-      name: 'BusCatcher',
-      fileName: () => 'bundle.js',
-      formats: ['iife']
+      entry: "js/index.ts",
+      name: "BusCatcher",
+      fileName: () => "bundle.js",
+      formats: ["iife"],
     },
     rollupOptions: {
-      external: ['leaflet'],
+      external: ["leaflet"],
       output: {
         globals: {
-          leaflet: 'L'
-        }
-      }
-    }
+          leaflet: "L",
+        },
+      },
+    },
   },
   resolve: {
     alias: {
-      '@': '/js'
-    }
-  }
+      "@": "/js",
+    },
+  },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+    },
+  },
 });

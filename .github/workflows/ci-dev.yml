@@ -36,6 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: Development
     needs: build-and-test
+    strategy:
+      matrix:
+        component: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
 
@@ -45,14 +48,13 @@ jobs:
           username: ${{ vars.DOCKER_HUB_LOGIN }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      - name: Build backend dev image
-        run: docker build --target backend -t quietjbs/sha256:buscatcher-backend-dev -f docker/Dockerfile .
-
-      - name: Build frontend dev image
-        run: docker build --target frontend -t quietjbs/sha256:buscatcher-frontend-dev -f docker/Dockerfile .
-
-      - name: Push backend dev image
-        run: docker push quietjbs/sha256:buscatcher-backend-dev
-
-      - name: Push frontend dev image
-        run: docker push quietjbs/sha256:buscatcher-frontend-dev
+      - name: Build and push ${{ matrix.component }} dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ matrix.component }}
+          push: true
+          tags: quietjbs/sha256:buscatcher-${{ matrix.component }}-dev
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

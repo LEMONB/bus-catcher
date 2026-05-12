@@ -16,8 +16,6 @@ services:
     image: quietjbs/sha256:buscatcher-frontend-latest
     container_name: buscatcher-nginx
     restart: unless-stopped
-    ports:
-      - "8080:80"
     depends_on:
       - backend
     networks:

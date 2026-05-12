@@ -1,0 +1,47 @@
+name: Dev Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore:
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint, format, typecheck
+        run: npm run check
+
+  create-dev-image:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build docker image
+        run: docker build -t quietjbs/sha256:buscatcher-dev -f docker/Dockerfile .
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_HUB_LOGIN }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Push dev image to Docker Hub
+        run: docker push quietjbs/sha256:buscatcher-dev

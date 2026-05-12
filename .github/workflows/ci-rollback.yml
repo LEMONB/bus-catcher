@@ -13,11 +13,11 @@ jobs:
       - name: Login to Docker Hub
         run: crane auth login docker.io -u "${{ vars.DOCKER_HUB_LOGIN }}" -p "${{ secrets.DOCKER_HUB_PASSWORD }}"
 
-      - name: Copy prev as latest (API)
-        run: crane copy quietjbs/sha256:buscatcher-prev quietjbs/sha256:buscatcher-latest
+      - name: Copy backend prev as latest
+        run: crane copy quietjbs/sha256:buscatcher-backend-prev quietjbs/sha256:buscatcher-backend-latest
 
-      - name: Copy prev as latest (nginx)
-        run: crane copy quietjbs/sha256:buscatcher-prev-nginx quietjbs/sha256:buscatcher-latest-nginx
+      - name: Copy frontend prev as latest
+        run: crane copy quietjbs/sha256:buscatcher-frontend-prev quietjbs/sha256:buscatcher-frontend-latest
 
   deploy:
     runs-on: ubuntu-latest

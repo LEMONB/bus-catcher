@@ -8,7 +8,7 @@ COPY . .
 RUN npm run build
 RUN npm run typecheck:server
 
-FROM node:20-alpine AS api
+FROM node:20-alpine AS backend
 WORKDIR /app
 
 COPY package*.json ./
@@ -25,7 +25,7 @@ EXPOSE 3001
 
 CMD ["node", "dist/server/index.js"]
 
-FROM nginx:alpine
+FROM nginx:alpine AS frontend
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 

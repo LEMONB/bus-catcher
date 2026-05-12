@@ -1,9 +1,9 @@
 services:
-  api:
+  backend:
     build:
       context: .
       dockerfile: docker/Dockerfile
-      target: api
+      target: backend
     container_name: buscatcher-api
     restart: unless-stopped
     environment:
@@ -15,16 +15,17 @@ services:
     networks:
       - buscatcher-network
 
-  nginx:
+  frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: frontend
     container_name: buscatcher-nginx
     restart: unless-stopped
     ports:
       - "8080:80"
     depends_on:
-      - api
+      - backend
     networks:
       - buscatcher-network
 

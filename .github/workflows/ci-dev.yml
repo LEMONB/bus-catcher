@@ -23,7 +23,15 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Lint, format, typecheck
@@ -36,6 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: Development
     needs: build-and-test
+    strategy:
+      matrix:
+        component: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
 
@@ -45,14 +56,16 @@ jobs:
           username: ${{ vars.DOCKER_HUB_LOGIN }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      - name: Build backend dev image
-        run: docker build --target backend -t quietjbs/sha256:buscatcher-backend-dev -f docker/Dockerfile .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build frontend dev image
-        run: docker build --target frontend -t quietjbs/sha256:buscatcher-frontend-dev -f docker/Dockerfile .
-
-      - name: Push backend dev image
-        run: docker push quietjbs/sha256:buscatcher-backend-dev
-
-      - name: Push frontend dev image
-        run: docker push quietjbs/sha256:buscatcher-frontend-dev
+      - name: Build and push ${{ matrix.component }} dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ matrix.component }}
+          push: true
+          tags: quietjbs/sha256:buscatcher-${{ matrix.component }}-dev
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

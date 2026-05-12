@@ -13,7 +13,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": ["leaflet", "node"]
+    "types": ["leaflet", "node", "vitest/globals"]
   },
   "include": ["js/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist", "data"]

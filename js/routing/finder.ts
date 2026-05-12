@@ -1,98 +1,116 @@
-import { Stop, Point, timeToSeconds, calculateWaitTime } from '../utils/time';
-import { Caches, Route, StopTime } from '../gtfs/cache';
+import type { Stop, Point } from "../utils/time";
+import { timeToSeconds, calculateWaitTime } from "../utils/time";
+import type { Caches, Route, StopTime } from "../gtfs/cache";
 
 const WALKING_SPEED_KMH = 5;
 
 export interface BusOption {
-    route: Route | undefined;
-    waitTimeMinutes: number;
-    walkTimeMinutes: number;
-    canMakeIt: boolean;
-    homeStop: Stop;
-    destStop: Stop;
-    tripId: string;
-    allStopTimes: StopTime[];
+  route: Route | undefined;
+  waitTimeMinutes: number;
+  walkTimeMinutes: number;
+  canMakeIt: boolean;
+  homeStop: Stop;
+  destStop: Stop;
+  tripId: string;
+  allStopTimes: StopTime[];
 }
 
-export function findBuses(stopA: Stop, stopB: Stop, homePoint: Point, caches: Caches, routesData: Route[], currentTime: number): BusOption[] {
-    const { stopTripIdsCache, tripToRouteCache, tripStopTimesCache } = caches;
-    
-    const stopATripIds = stopTripIdsCache[stopA.stop_id];
-    if (!stopATripIds) return [];
-    
-    const tripsByRoute: Record<string, string[]> = {};
-    for (const tripId of stopATripIds) {
-        const trip = tripToRouteCache[tripId];
-        if (!trip) continue;
-        
-        if (!tripsByRoute[trip.route_id]) {
-            tripsByRoute[trip.route_id] = [];
-        }
-        tripsByRoute[trip.route_id].push(tripId);
+export function findBuses(
+  stopA: Stop,
+  stopB: Stop,
+  homePoint: Point,
+  caches: Caches,
+  routesData: Route[],
+  currentTime: number,
+): BusOption[] {
+  const { stopTripIdsCache, tripToRouteCache, tripStopTimesCache } = caches;
+
+  const stopATripIds = stopTripIdsCache[stopA.stop_id];
+  if (!stopATripIds) return [];
+
+  const tripsByRoute: Record<string, string[]> = {};
+  for (const tripId of stopATripIds) {
+    const trip = tripToRouteCache[tripId];
+    if (!trip) continue;
+
+    if (!tripsByRoute[trip.route_id]) {
+      tripsByRoute[trip.route_id] = [];
     }
-    
-    const buses: BusOption[] = [];
-    
-    for (const routeId in tripsByRoute) {
-        const tripIds = tripsByRoute[routeId];
-        let bestTrip: { tripId: string; tripStops: StopTime[]; departureSecs: number } | null = null;
-        let bestWaitTime = Infinity;
-        
-        for (const tripId of tripIds) {
-            const tripStops = tripStopTimesCache[tripId];
-            if (!tripStops) continue;
-            
-            const idxA = tripStops.findIndex((st: StopTime) => st.stop_id === stopA.stop_id);
-            const idxB = tripStops.findIndex((st: StopTime) => st.stop_id === stopB.stop_id);
-            
-            if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
-                const departureTime = tripStops[idxA].arrival_time;
-                const departureSecs = timeToSeconds(departureTime);
-                
-                const waitTimeSecs = calculateWaitTime(departureSecs, currentTime);
-                
-                if (waitTimeSecs < bestWaitTime) {
-                    bestWaitTime = waitTimeSecs;
-                    bestTrip = { tripId, tripStops, departureSecs };
-                }
-            }
+    tripsByRoute[trip.route_id].push(tripId);
+  }
+
+  const buses: BusOption[] = [];
+
+  for (const routeId in tripsByRoute) {
+    const tripIds = tripsByRoute[routeId];
+    let bestTrip: {
+      tripId: string;
+      tripStops: StopTime[];
+      departureSecs: number;
+    } | null = null;
+    let bestWaitTime = Infinity;
+
+    for (const tripId of tripIds) {
+      const tripStops = tripStopTimesCache[tripId];
+      if (!tripStops) continue;
+
+      const idxA = tripStops.findIndex(
+        (st: StopTime) => st.stop_id === stopA.stop_id,
+      );
+      const idxB = tripStops.findIndex(
+        (st: StopTime) => st.stop_id === stopB.stop_id,
+      );
+
+      if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
+        const departureTime = tripStops[idxA].arrival_time;
+        const departureSecs = timeToSeconds(departureTime);
+
+        const waitTimeSecs = calculateWaitTime(departureSecs, currentTime);
+
+        if (waitTimeSecs < bestWaitTime) {
+          bestWaitTime = waitTimeSecs;
+          bestTrip = { tripId, tripStops, departureSecs };
         }
-        
-        if (bestTrip) {
-            const walkTimeMinutes = calculateWalkTime(stopA, homePoint);
-            const waitTimeMinutes = Math.floor(bestWaitTime / 60);
-            const canMakeIt = waitTimeMinutes > walkTimeMinutes;
-            
-            const trip = tripToRouteCache[bestTrip.tripId];
-            const route = routesData.find(r => r.route_id === routeId);
-            
-            buses.push({
-                route,
-                waitTimeMinutes,
-                walkTimeMinutes,
-                canMakeIt,
-                homeStop: stopA,
-                destStop: stopB,
-                tripId: bestTrip.tripId,
-                allStopTimes: bestTrip.tripStops
-            });
-        }
+      }
     }
-    
-    buses.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes);
-    
-    return buses;
+
+    if (bestTrip) {
+      const walkTimeMinutes = calculateWalkTime(stopA, homePoint);
+      const waitTimeMinutes = Math.floor(bestWaitTime / 60);
+      const canMakeIt = waitTimeMinutes > walkTimeMinutes;
+
+      const route = routesData.find((r) => r.route_id === routeId);
+
+      buses.push({
+        route,
+        waitTimeMinutes,
+        walkTimeMinutes,
+        canMakeIt,
+        homeStop: stopA,
+        destStop: stopB,
+        tripId: bestTrip.tripId,
+        allStopTimes: bestTrip.tripStops,
+      });
+    }
+  }
+
+  buses.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes);
+
+  return buses;
 }
 
 function calculateWalkTime(stop: Stop, homePt: Point): number {
-    const R = 6371;
-    const dLat = (parseFloat(stop.stop_lat) - homePt.lat) * Math.PI / 180;
-    const dLon = (parseFloat(stop.stop_lon) - homePt.lon) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(homePt.lat * Math.PI / 180) * Math.cos(parseFloat(stop.stop_lat) * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const dist = R * c;
-    
-    return Math.round((dist / WALKING_SPEED_KMH) * 60);
+  const R = 6371;
+  const dLat = ((parseFloat(stop.stop_lat) - homePt.lat) * Math.PI) / 180;
+  const dLon = ((parseFloat(stop.stop_lon) - homePt.lon) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((homePt.lat * Math.PI) / 180) *
+      Math.cos((parseFloat(stop.stop_lat) * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const dist = R * c;
+
+  return Math.round((dist / WALKING_SPEED_KMH) * 60);
 }

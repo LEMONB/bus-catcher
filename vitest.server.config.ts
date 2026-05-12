@@ -4,14 +4,13 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    setupFiles: ["./tests/setup.ts"],
-    include: ["tests/**/*.test.ts"],
-    exclude: ["tests/server/**/*.test.ts"],
+    setupFiles: ["./tests/server/setup.ts"],
+    include: ["tests/server/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text"],
-      include: ["js/**/*.ts"],
-      exclude: ["js/app.ts", "js/index.ts", "js/map.ts"],
+      include: ["server/**/*.ts"],
+      exclude: ["server/index.ts"],
     },
   },
 });

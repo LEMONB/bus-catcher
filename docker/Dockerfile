@@ -10,6 +10,7 @@ RUN apk del python3 make g++
 
 COPY . .
 RUN npm run build
+COPY index.html ./dist/
 RUN npm run typecheck:server
 
 FROM node:20-alpine AS backend

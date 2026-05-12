@@ -1,0 +1,15 @@
+name: Pre PR Pipeline
+
+on: [workflow_dispatch, create]
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create pull request
+        run: |
+          gh pr create -B main --title "Merge ${{ github.ref_name }} into main" --body 'Created by GitHub Action' || gh pr edit -B main --title "Merge ${{ github.ref_name }} into main" --body 'Created by GitHub Action'
+        env:
+          GH_TOKEN: ${{ github.token }}

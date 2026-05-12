@@ -101,12 +101,12 @@ export function findBuses(
 
 function calculateWalkTime(stop: Stop, homePt: Point): number {
   const R = 6371;
-  const dLat = ((parseFloat(stop.stop_lat) - homePt.lat) * Math.PI) / 180;
-  const dLon = ((parseFloat(stop.stop_lon) - homePt.lon) * Math.PI) / 180;
+  const dLat = ((stop.stop_lat - homePt.lat) * Math.PI) / 180;
+  const dLon = ((stop.stop_lon - homePt.lon) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((homePt.lat * Math.PI) / 180) *
-      Math.cos((parseFloat(stop.stop_lat) * Math.PI) / 180) *
+      Math.cos((stop.stop_lat * Math.PI) / 180) *
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));

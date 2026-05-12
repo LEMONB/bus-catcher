@@ -42,14 +42,14 @@ describe("favorites", () => {
       stopA: {
         stop_id: "stopA",
         stop_name: "Остановка А",
-        stop_lat: "55.0",
-        stop_lon: "37.0",
+        stop_lat: 55.0,
+        stop_lon: 37.0,
       },
       stopB: {
         stop_id: "stopB",
         stop_name: "Остановка Б",
-        stop_lat: "55.1",
-        stop_lon: "37.1",
+        stop_lat: 55.1,
+        stop_lon: 37.1,
       },
       homePoint: { lat: 55.75, lon: 37.61 },
     };
@@ -65,15 +65,15 @@ describe("favorites", () => {
     const fav1: Favorite = {
       id: "fav_1",
       name: "Route 1",
-      stopA: { stop_id: "1", stop_name: "A", stop_lat: "55", stop_lon: "37" },
-      stopB: { stop_id: "2", stop_name: "B", stop_lat: "55", stop_lon: "37" },
+      stopA: { stop_id: "1", stop_name: "A", stop_lat: 55, stop_lon: 37 },
+      stopB: { stop_id: "2", stop_name: "B", stop_lat: 55, stop_lon: 37 },
       homePoint: { lat: 55, lon: 37 },
     };
     const fav2: Favorite = {
       id: "fav_2",
       name: "Route 2",
-      stopA: { stop_id: "3", stop_name: "C", stop_lat: "55", stop_lon: "37" },
-      stopB: { stop_id: "4", stop_name: "D", stop_lat: "55", stop_lon: "37" },
+      stopA: { stop_id: "3", stop_name: "C", stop_lat: 55, stop_lon: 37 },
+      stopB: { stop_id: "4", stop_name: "D", stop_lat: 55, stop_lon: 37 },
       homePoint: { lat: 55, lon: 37 },
     };
     saveFavorite(fav1);
@@ -87,15 +87,15 @@ describe("favorites", () => {
     const fav1: Favorite = {
       id: "fav_1",
       name: "Route 1",
-      stopA: { stop_id: "1", stop_name: "A", stop_lat: "55", stop_lon: "37" },
-      stopB: { stop_id: "2", stop_name: "B", stop_lat: "55", stop_lon: "37" },
+      stopA: { stop_id: "1", stop_name: "A", stop_lat: 55, stop_lon: 37 },
+      stopB: { stop_id: "2", stop_name: "B", stop_lat: 55, stop_lon: 37 },
       homePoint: { lat: 55, lon: 37 },
     };
     const fav2: Favorite = {
       id: "fav_2",
       name: "Route 2",
-      stopA: { stop_id: "3", stop_name: "C", stop_lat: "55", stop_lon: "37" },
-      stopB: { stop_id: "4", stop_name: "D", stop_lat: "55", stop_lon: "37" },
+      stopA: { stop_id: "3", stop_name: "C", stop_lat: 55, stop_lon: 37 },
+      stopB: { stop_id: "4", stop_name: "D", stop_lat: 55, stop_lon: 37 },
       homePoint: { lat: 55, lon: 37 },
     };
     saveFavorite(fav1);
@@ -112,8 +112,8 @@ describe("favorites", () => {
     const fav1: Favorite = {
       id: "fav_1",
       name: "Route 1",
-      stopA: { stop_id: "1", stop_name: "A", stop_lat: "55", stop_lon: "37" },
-      stopB: { stop_id: "2", stop_name: "B", stop_lat: "55", stop_lon: "37" },
+      stopA: { stop_id: "1", stop_name: "A", stop_lat: 55, stop_lon: 37 },
+      stopB: { stop_id: "2", stop_name: "B", stop_lat: 55, stop_lon: 37 },
       homePoint: { lat: 55, lon: 37 },
     };
     saveFavorite(fav1);

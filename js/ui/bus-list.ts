@@ -1,5 +1,5 @@
 import type { Stop, Point } from "../utils/time";
-import type { BusOption } from "../routing/finder";
+import type { BusOption } from "../gtfs/api-client";
 import { getFavorites, type Favorite } from "../state/favorites";
 
 export function renderBuses(
@@ -40,12 +40,14 @@ export function renderBuses(
     };
 
     const isFav = favorites.some(isFavorite);
+    const walkTimeMinutes = calculateWalkTime(stopA, homePoint);
+    const canMakeIt = bus.waitTimeMinutes > walkTimeMinutes;
 
     div.innerHTML = `
             <span class="bus-number">${bus.route?.route_short_name || "?"}</span>
             <span class="bus-time">через ${bus.waitTimeMinutes} мин</span>
-            <span class="bus-walk">(${bus.walkTimeMinutes} мин пешком)</span>
-            <span class="bus-status ${bus.canMakeIt ? "success" : "danger"}">${bus.canMakeIt ? "✓" : "✗"}</span>
+            <span class="bus-walk">(${walkTimeMinutes} мин пешком)</span>
+            <span class="bus-status ${canMakeIt ? "success" : "danger"}">${canMakeIt ? "✓" : "✗"}</span>
             <span class="bus-destination">${stopA?.stop_name || ""} → ${stopB?.stop_name || ""}</span>
             <button class="favorite-btn ${isFav ? "active" : ""}" title="${isFav ? "Удалить из избранного" : "Добавить в избранное"}">${isFav ? "★" : "☆"}</button>
         `;
@@ -58,6 +60,22 @@ export function renderBuses(
 
     container.appendChild(div);
   });
+}
+
+function calculateWalkTime(stop: Stop | null, homePt: Point | null): number {
+  if (!stop || !homePt) return 0;
+  const R = 6371;
+  const dLat = ((stop.stop_lat - homePt.lat) * Math.PI) / 180;
+  const dLon = ((stop.stop_lon - homePt.lon) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((homePt.lat * Math.PI) / 180) *
+      Math.cos((stop.stop_lat * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const dist = R * c;
+  return Math.round((dist / 5) * 60);
 }
 
 export function updateUIForStep(step: number): void {

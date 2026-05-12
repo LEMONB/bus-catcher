@@ -1,8 +1,7 @@
 import type { Stop } from "../utils/time";
-import type { Record } from "../gtfs/parser";
 
 export function searchStops(
-  stopsData: Record[],
+  stopsData: Stop[],
   query: string,
   limit = 10,
 ): Stop[] {
@@ -13,8 +12,14 @@ export function searchStops(
   const results = stopsData
     .filter((stop) => {
       if (!stop.stop_name) return false;
-      const lat = parseFloat(stop.stop_lat);
-      const lon = parseFloat(stop.stop_lon);
+      const lat =
+        typeof stop.stop_lat === "number"
+          ? stop.stop_lat
+          : parseFloat(stop.stop_lat);
+      const lon =
+        typeof stop.stop_lon === "number"
+          ? stop.stop_lon
+          : parseFloat(stop.stop_lon);
       return !isNaN(lat) && !isNaN(lon);
     })
     .filter((stop) => {
@@ -22,14 +27,14 @@ export function searchStops(
     })
     .slice(0, limit);
 
-  return results as Stop[];
+  return results;
 }
 
 let modalElement: HTMLElement | null = null;
 let inputElement: HTMLInputElement | null = null;
 let resultsElement: HTMLDivElement | null = null;
 let onSelectCallback: ((stop: Stop) => void) | null = null;
-let currentStopsData: Record[] = [];
+let currentStopsData: Stop[] = [];
 
 function createModal(): void {
   if (modalElement) return;
@@ -155,7 +160,7 @@ function renderResults(query: string): void {
 }
 
 export function openSearchModal(
-  stopsData: Record[],
+  stopsData: Stop[],
   onSelect: (stop: Stop) => void,
 ): void {
   currentStopsData = stopsData;

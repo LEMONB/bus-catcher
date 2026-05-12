@@ -1,5 +1,5 @@
 import type { Stop, Point } from "./utils/time";
-import type { Record } from "./gtfs/parser";
+import type { BusOption, StopResponse } from "./gtfs/api-client";
 import { getDistanceBetweenPoints } from "./utils/distance";
 import L from "leaflet";
 
@@ -11,7 +11,7 @@ let stopAMarker: L.Marker | null = null;
 let stopBMarker: L.Marker | null = null;
 let homeMarker: L.Marker | null = null;
 let routeLines: L.Polyline[] = [];
-let stopsData: Record[] = [];
+let stopsData: StopResponse[] = [];
 
 export function initMap(containerId = "map"): L.Map {
   if (map) return map;
@@ -28,7 +28,7 @@ export function getMap(): L.Map | null {
   return map;
 }
 
-export function setStopsData(data: Record[]): void {
+export function setStopsData(data: StopResponse[]): void {
   stopsData = data;
 }
 
@@ -43,8 +43,8 @@ export function highlightAvailableStops(
   let activeTooltip: HTMLElement | null = null;
 
   stopsData.forEach((stop) => {
-    const lat = parseFloat(stop.stop_lat);
-    const lon = parseFloat(stop.stop_lon);
+    const lat = stop.stop_lat;
+    const lon = stop.stop_lon;
 
     if (!isNaN(lat) && !isNaN(lon)) {
       const isAvailable =
@@ -93,8 +93,8 @@ export function renderStops(): void {
   let activeTooltip: HTMLElement | null = null;
 
   stopsData.forEach((stop) => {
-    const lat = parseFloat(stop.stop_lat);
-    const lon = parseFloat(stop.stop_lon);
+    const lat = stop.stop_lat;
+    const lon = stop.stop_lon;
 
     if (!isNaN(lat) && !isNaN(lon)) {
       const marker = L.circleMarker([lat, lon], {
@@ -148,16 +148,13 @@ export function setStopAMarker(stop: Stop): void {
   if (!map) return;
 
   if (stopAMarker) map.removeLayer(stopAMarker);
-  stopAMarker = L.marker(
-    [parseFloat(stop.stop_lat), parseFloat(stop.stop_lon)],
-    {
-      icon: L.divIcon({
-        className: "stop-a-marker",
-        html: "🚌",
-        iconSize: [30, 30],
-      }),
-    },
-  ).addTo(map);
+  stopAMarker = L.marker([stop.stop_lat, stop.stop_lon], {
+    icon: L.divIcon({
+      className: "stop-a-marker",
+      html: "🚌",
+      iconSize: [30, 30],
+    }),
+  }).addTo(map);
   stopAMarker.bindPopup("Остановка: " + stop.stop_name).openPopup();
 }
 
@@ -165,16 +162,13 @@ export function setStopBMarker(stop: Stop): void {
   if (!map) return;
 
   if (stopBMarker) map.removeLayer(stopBMarker);
-  stopBMarker = L.marker(
-    [parseFloat(stop.stop_lat), parseFloat(stop.stop_lon)],
-    {
-      icon: L.divIcon({
-        className: "stop-b-marker",
-        html: "🏁",
-        iconSize: [30, 30],
-      }),
-    },
-  ).addTo(map);
+  stopBMarker = L.marker([stop.stop_lat, stop.stop_lon], {
+    icon: L.divIcon({
+      className: "stop-b-marker",
+      html: "🏁",
+      iconSize: [30, 30],
+    }),
+  }).addTo(map);
   stopBMarker.bindPopup("Остановка: " + stop.stop_name).openPopup();
 }
 
@@ -187,27 +181,25 @@ export function findNearestStop(
   let nearestDist = maxDistanceKm;
 
   for (const stop of stopsData) {
-    const stopLat = parseFloat(stop.stop_lat);
-    const stopLon = parseFloat(stop.stop_lon);
+    const stopLat = stop.stop_lat;
+    const stopLon = stop.stop_lon;
     const dist = getDistanceBetweenPoints(lat, lon, stopLat, stopLon);
 
     if (dist < nearestDist) {
       nearestDist = dist;
-      nearest = stop as Stop;
+      nearest = {
+        stop_id: stop.stop_id,
+        stop_name: stop.stop_name,
+        stop_lat: stop.stop_lat,
+        stop_lon: stop.stop_lon,
+      };
     }
   }
 
   return nearest;
 }
 
-export function showRouteOnMap(
-  routeOption: {
-    homeStop: Stop;
-    destStop: Stop;
-    allStopTimes?: { stop_id: string }[];
-  },
-  homePoint: Point,
-): void {
+export function showRouteOnMap(bus: BusOption, homePoint: Point): void {
   if (!map) return;
 
   routeLines.forEach((l) => map!.removeLayer(l));
@@ -216,10 +208,7 @@ export function showRouteOnMap(
   const walkToStop = L.polyline(
     [
       [homePoint.lat, homePoint.lon],
-      [
-        parseFloat(routeOption.homeStop.stop_lat),
-        parseFloat(routeOption.homeStop.stop_lon),
-      ],
+      [bus.homeStop.stop_lat, bus.homeStop.stop_lon],
     ],
     {
       color: "#4CAF50",
@@ -230,22 +219,22 @@ export function showRouteOnMap(
   ).addTo(map);
   routeLines.push(walkToStop);
 
-  if (routeOption.allStopTimes) {
-    const idxA = routeOption.allStopTimes.findIndex(
-      (st) => st.stop_id === routeOption.homeStop.stop_id,
+  if (bus.stop_times) {
+    const idxA = bus.stop_times.findIndex(
+      (st) => st.stop_id === bus.homeStop.stop_id,
     );
-    const idxB = routeOption.allStopTimes.findIndex(
-      (st) => st.stop_id === routeOption.destStop.stop_id,
+    const idxB = bus.stop_times.findIndex(
+      (st) => st.stop_id === bus.destStop.stop_id,
     );
 
     if (idxA >= 0 && idxB >= 0 && idxA < idxB) {
-      const relevantStops = routeOption.allStopTimes.slice(idxA, idxB + 1);
+      const relevantStops = bus.stop_times.slice(idxA, idxB + 1);
 
       const busCoords: [number, number][] = relevantStops
         .map((st) => {
           const stop = stopsData.find((s) => s.stop_id === st.stop_id);
           if (!stop) return null;
-          return [parseFloat(stop.stop_lat), parseFloat(stop.stop_lon)];
+          return [stop.stop_lat, stop.stop_lon];
         })
         .filter((c): c is [number, number] => c !== null);
 
@@ -262,10 +251,7 @@ export function showRouteOnMap(
 
   const walkFromStop = L.polyline(
     [
-      [
-        parseFloat(routeOption.destStop.stop_lat),
-        parseFloat(routeOption.destStop.stop_lon),
-      ],
+      [bus.destStop.stop_lat, bus.destStop.stop_lon],
       [homePoint.lat, homePoint.lon],
     ],
     {
@@ -279,14 +265,8 @@ export function showRouteOnMap(
 
   const allCoords: [number, number][] = [
     [homePoint.lat, homePoint.lon],
-    [
-      parseFloat(routeOption.homeStop.stop_lat),
-      parseFloat(routeOption.homeStop.stop_lon),
-    ],
-    [
-      parseFloat(routeOption.destStop.stop_lat),
-      parseFloat(routeOption.destStop.stop_lon),
-    ],
+    [bus.homeStop.stop_lat, bus.homeStop.stop_lon],
+    [bus.destStop.stop_lat, bus.destStop.stop_lon],
     [homePoint.lat, homePoint.lon],
   ];
 

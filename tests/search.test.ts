@@ -1,36 +1,36 @@
 import { searchStops } from "../js/ui/search";
-import type { Record } from "../js/gtfs/parser";
+import type { Stop } from "../js/utils/time";
 
-const mockStops: Record[] = [
+const mockStops: Stop[] = [
   {
     stop_id: "1",
     stop_name: "Метро «Владыкино»",
-    stop_lat: "55.8",
-    stop_lon: "37.6",
+    stop_lat: 55.8,
+    stop_lon: 37.6,
   },
   {
     stop_id: "2",
     stop_name: "Метро «Отрадное»",
-    stop_lat: "55.85",
-    stop_lon: "37.65",
+    stop_lat: 55.85,
+    stop_lon: 37.65,
   },
   {
     stop_id: "3",
     stop_name: "Владыкино",
-    stop_lat: "55.81",
-    stop_lon: "37.61",
+    stop_lat: 55.81,
+    stop_lon: 37.61,
   },
   {
     stop_id: "4",
     stop_name: "Остановка 1",
-    stop_lat: "55.75",
-    stop_lon: "37.62",
+    stop_lat: 55.75,
+    stop_lon: 37.62,
   },
   {
     stop_id: "5",
     stop_name: "Метро Черкизовская",
-    stop_lat: "55.80",
-    stop_lon: "37.74",
+    stop_lat: 55.8,
+    stop_lon: 37.74,
   },
 ];
 
@@ -67,14 +67,14 @@ describe("searchStops", () => {
   });
 
   test("filters out stops without required fields", () => {
-    const stopsWithBad: Record[] = [
-      { stop_id: "1", stop_name: "Valid", stop_lat: "55.8", stop_lon: "37.6" },
-      { stop_id: "2", stop_name: "No coords", stop_lat: "", stop_lon: "" },
+    const stopsWithBad: Stop[] = [
+      { stop_id: "1", stop_name: "Valid", stop_lat: 55.8, stop_lon: 37.6 },
+      { stop_id: "2", stop_name: "No coords", stop_lat: NaN, stop_lon: NaN },
       {
         stop_id: "3",
         stop_name: "Valid 2",
-        stop_lat: "55.9",
-        stop_lon: "37.7",
+        stop_lat: 55.9,
+        stop_lon: 37.7,
       },
     ];
 

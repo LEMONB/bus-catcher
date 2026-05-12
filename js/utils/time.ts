@@ -8,9 +8,20 @@ export interface Point {
 export interface Stop {
   stop_id: string;
   stop_name: string;
-  stop_lat: string;
-  stop_lon: string;
-  [key: string]: string;
+  stop_lat: number;
+  stop_lon: number;
+}
+
+export function stopLat(stop: Stop): number {
+  return typeof stop.stop_lat === "number"
+    ? stop.stop_lat
+    : parseFloat(stop.stop_lat);
+}
+
+export function stopLon(stop: Stop): number {
+  return typeof stop.stop_lon === "number"
+    ? stop.stop_lon
+    : parseFloat(stop.stop_lon);
 }
 
 const WALKING_SPEED_KMH = 5;
@@ -19,8 +30,8 @@ export function getWalkTime(stop: Stop, homePoint: Point): number {
   const dist = getDistanceBetweenPoints(
     homePoint.lat,
     homePoint.lon,
-    parseFloat(stop.stop_lat),
-    parseFloat(stop.stop_lon),
+    stopLat(stop),
+    stopLon(stop),
   );
   return Math.round((dist / WALKING_SPEED_KMH) * 60);
 }

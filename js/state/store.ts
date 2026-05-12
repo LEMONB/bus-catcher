@@ -1,5 +1,4 @@
 import type { Stop, Point } from "../utils/time";
-import type { Record } from "../gtfs/parser";
 
 interface State {
   stopA: Stop | null;
@@ -84,7 +83,7 @@ interface Callbacks {
   onStopBChange?: (stop: Stop) => void;
 }
 
-export function loadFromURL(stopsData: Record[], callbacks: Callbacks): State {
+export function loadFromURL(stopsData: Stop[], callbacks: Callbacks): State {
   const params = new URLSearchParams(window.location.search);
   const stopAParam = params.get("stopA");
   const stopBParam = params.get("stopB");

@@ -13,8 +13,8 @@ describe("getWalkTime", () => {
     const stop: Stop = {
       stop_id: "1",
       stop_name: "Near",
-      stop_lat: "55.758",
-      stop_lon: "37.619",
+      stop_lat: 55.758,
+      stop_lon: 37.619,
     };
 
     const walkTime = getWalkTime(stop, homePoint);
@@ -27,14 +27,14 @@ describe("getWalkTime", () => {
     const nearStop: Stop = {
       stop_id: "1",
       stop_name: "Near",
-      stop_lat: "55.758",
-      stop_lon: "37.619",
+      stop_lat: 55.758,
+      stop_lon: 37.619,
     };
     const farStop: Stop = {
       stop_id: "2",
       stop_name: "Far",
-      stop_lat: "55.80",
-      stop_lon: "37.70",
+      stop_lat: 55.8,
+      stop_lon: 37.7,
     };
 
     const nearTime = getWalkTime(nearStop, homePoint);
@@ -47,8 +47,8 @@ describe("getWalkTime", () => {
     const stop: Stop = {
       stop_id: "1",
       stop_name: "Same",
-      stop_lat: "55.7558",
-      stop_lon: "37.6173",
+      stop_lat: 55.7558,
+      stop_lon: 37.6173,
     };
 
     const walkTime = getWalkTime(stop, homePoint);

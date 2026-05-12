@@ -11,20 +11,20 @@ const mockStops: Stop[] = [
   {
     stop_id: "stopA",
     stop_name: "Остановка А",
-    stop_lat: "55.7558",
-    stop_lon: "37.6173",
+    stop_lat: 55.7558,
+    stop_lon: 37.6173,
   },
   {
     stop_id: "stopB",
     stop_name: "Остановка Б",
-    stop_lat: "55.7700",
-    stop_lon: "37.6500",
+    stop_lat: 55.77,
+    stop_lon: 37.65,
   },
   {
     stop_id: "stopC",
     stop_name: "Остановка В",
-    stop_lat: "55.8000",
-    stop_lon: "37.7000",
+    stop_lat: 55.8,
+    stop_lon: 37.7,
   },
 ];
 
@@ -209,8 +209,8 @@ describe("findBuses", () => {
     const stopA: Stop = {
       stop_id: "nonexistent",
       stop_name: "None",
-      stop_lat: "55.0",
-      stop_lon: "37.0",
+      stop_lat: 55.0,
+      stop_lon: 37.0,
     };
     const stopB = mockStops[1];
 

@@ -12,14 +12,14 @@ import type { Stop, Point } from "../js/utils/time";
 const mockStopA: Stop = {
   stop_id: "stopA",
   stop_name: "Остановка А",
-  stop_lat: "55.0",
-  stop_lon: "37.0",
+  stop_lat: 55.0,
+  stop_lon: 37.0,
 };
 const mockStopB: Stop = {
   stop_id: "stopB",
   stop_name: "Остановка Б",
-  stop_lat: "55.1",
-  stop_lon: "37.1",
+  stop_lat: 55.1,
+  stop_lon: 37.1,
 };
 const mockHomePoint: Point = { lat: 55.5, lon: 37.5 };
 

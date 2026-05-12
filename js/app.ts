@@ -1,14 +1,12 @@
-import { loadStopsAndRoutes, loadStopTimes } from "./gtfs/loader";
-import { parseCSV, parseCSVWithProgress, type Record } from "./gtfs/parser";
 import {
-  buildCaches,
-  type Caches,
-  type Trip,
-  type StopTime,
-  type Route,
-} from "./gtfs/cache";
-import { findBuses, type BusOption } from "./routing/finder";
-import { getAvailableStopIds } from "./routing/availability";
+  searchStops as apiSearchStops,
+  getAvailableStops as apiGetAvailableStops,
+  findRoutes as apiFindRoutes,
+  getTripTimes as apiGetTripTimes,
+  stopResponseToStop,
+  type StopResponse,
+  type BusOption as ApiBusOption,
+} from "./gtfs/api-client";
 import {
   getState,
   setStopA,
@@ -26,7 +24,7 @@ import {
   setHomeMarker,
   setStopAMarker,
   setStopBMarker,
-  findNearestStop,
+  findNearestStop as mapFindNearestStop,
   showRouteOnMap,
   clearMarkers,
   clearRoutes,
@@ -41,14 +39,12 @@ import {
   type Favorite,
 } from "./state/favorites";
 import { type Stop, type Point } from "./utils/time";
+import { getDistanceBetweenPoints } from "./utils/distance";
 
-let stopsData: Record[] = [];
-let routesData: Record[] = [];
-let stopTimesData: Record[] = [];
-let tripsData: Record[] = [];
-let caches: Caches | null = null;
+let stopsData: StopResponse[] = [];
 let availableStopIds: Set<string> | null = null;
 let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
+const WALKING_SPEED_KMH = 5;
 
 function showCornerLoader(text = "Загрузка..."): void {
   const loader = document.getElementById("corner-loader");
@@ -87,83 +83,21 @@ function setLoadingTimeout(onTimeout: () => void): void {
   }, 10000);
 }
 
-async function loadGTFS(): Promise<void> {
-  showCornerLoader("Загрузка данных...");
+async function loadStops(): Promise<void> {
+  showCornerLoader("Загрузка остановок...");
 
   setLoadingTimeout(() => {
     showCornerError("Ошибка загрузки. Проверьте соединение.");
   });
 
   try {
-    const { stopsText, routesText } = await loadStopsAndRoutes((text) => {
-      const loader = document.getElementById("corner-loader");
-      if (loader) {
-        const textEl = loader.querySelector(".loader-text");
-        if (textEl) textEl.textContent = text;
-      }
-    });
-
-    stopsData = parseCSV(stopsText);
-    routesData = parseCSV(routesText);
-
-    setStopsData(stopsData);
+    stopsData = await apiSearchStops("");
+    setStopsData(stopsData.map((s) => stopResponseToStop(s)));
     renderStops();
     hideCornerLoader();
   } catch (e) {
-    console.error("Error loading GTFS:", e);
+    console.error("Error loading stops:", e);
     showCornerError("Ошибка загрузки: " + (e as Error).message);
-  }
-}
-
-async function loadSchedule(): Promise<void> {
-  if (stopTimesData.length > 0) return;
-
-  showCornerLoader("Загрузка расписания...");
-
-  setLoadingTimeout(() => {
-    showCornerError("Ошибка загрузки. Проверьте соединение.");
-  });
-
-  try {
-    const { stopTimesText, tripsText } = await loadStopTimes((text) => {
-      const loader = document.getElementById("corner-loader");
-      if (loader) {
-        const textEl = loader.querySelector(".loader-text");
-        if (textEl) textEl.textContent = text;
-      }
-    });
-
-    showCornerLoader("Обработка stop_times.txt...");
-    stopTimesData = await parseCSVWithProgress(stopTimesText, (percent) => {
-      const loader = document.getElementById("corner-loader");
-      if (loader) {
-        const textEl = loader.querySelector(".loader-text");
-        if (textEl)
-          textEl.textContent = `Обработка stop_times.txt... ${percent}%`;
-      }
-    });
-
-    showCornerLoader("Обработка trips.txt...");
-    tripsData = await parseCSVWithProgress(tripsText, (percent) => {
-      const loader = document.getElementById("corner-loader");
-      if (loader) {
-        const textEl = loader.querySelector(".loader-text");
-        if (textEl) textEl.textContent = `Обработка trips.txt... ${percent}%`;
-      }
-    });
-
-    caches = buildCaches(tripsData as Trip[], stopTimesData as StopTime[]);
-
-    console.log("Schedule loaded:", {
-      stopTimes: stopTimesData.length,
-      trips: tripsData.length,
-    });
-
-    hideCornerLoader();
-  } catch (e) {
-    console.error("Error loading schedule:", e);
-    showCornerError("Ошибка загрузки расписания: " + (e as Error).message);
-    throw e;
   }
 }
 
@@ -196,7 +130,7 @@ function setHomePointInternal(lat: number, lon: number): void {
 }
 
 function selectStopA(lat: number, lon: number): void {
-  const stop = findNearestStop(lat, lon);
+  const stop = mapFindNearestStop(lat, lon);
 
   if (!stop) {
     alert("Рядом нет остановки. Кликните ближе к остановке.");
@@ -206,30 +140,22 @@ function selectStopA(lat: number, lon: number): void {
   setStopA(stop as Stop);
   setStopAMarker(stop as Stop);
 
-  if (stopTimesData.length === 0) {
-    showCornerLoader("Загрузка расписания...");
-    loadSchedule().then(() => {
+  showCornerLoader("Загрузка доступных остановок...");
+  apiGetAvailableStops(stop.stop_id)
+    .then((availableStops) => {
+      availableStopIds = new Set(availableStops.map((s) => s.stop_id));
+      highlightAvailableStops(availableStopIds);
       hideCornerLoader();
-      updateUIForStepAfterStopA(stop as Stop);
+      updateUIForStep(getStep());
+    })
+    .catch((e) => {
+      console.error("Error loading available stops:", e);
+      showCornerError("Ошибка загрузки: " + (e as Error).message);
     });
-  } else {
-    updateUIForStepAfterStopA(stop as Stop);
-  }
-}
-
-function updateUIForStepAfterStopA(stop: Stop): void {
-  if (!caches) {
-    caches = buildCaches(tripsData as Trip[], stopTimesData as StopTime[]);
-  }
-  availableStopIds = getAvailableStopIds(stop.stop_id, caches);
-
-  highlightAvailableStops(availableStopIds);
-
-  updateUIForStep(getStep());
 }
 
 function selectStopB(lat: number, lon: number): void {
-  const stop = findNearestStop(lat, lon);
+  const stop = mapFindNearestStop(lat, lon);
 
   if (!stop) {
     alert("Рядом нет остановки. Кликните ближе к остановке.");
@@ -240,10 +166,6 @@ function selectStopB(lat: number, lon: number): void {
   if (stop.stop_id === state.stopA?.stop_id) {
     alert("Выберите другую остановку.");
     return;
-  }
-
-  if (!caches) {
-    caches = buildCaches(tripsData as Trip[], stopTimesData as StopTime[]);
   }
 
   if (availableStopIds && !availableStopIds.has(stop.stop_id)) {
@@ -258,56 +180,130 @@ function selectStopB(lat: number, lon: number): void {
 
   highlightAvailableStops(availableStopIds);
 
-  if (stopTimesData.length === 0) {
-    showCornerLoader("Загрузка расписания...");
-    loadSchedule().then(() => {
-      hideCornerLoader();
-      updateUIForStep(getStep());
-      findAndDisplayBuses();
-    });
-  } else {
-    updateUIForStep(getStep());
-    findAndDisplayBuses();
-  }
+  updateUIForStep(getStep());
+  findAndDisplayBuses();
 }
 
-function findAndDisplayBuses(): void {
+function timeToSeconds(timeStr: string): number {
+  const [hours, minutes, seconds] = timeStr.split(":").map(Number);
+  return (hours || 0) * 3600 + (minutes || 0) * 60 + (seconds || 0);
+}
+
+function calculateWaitTime(
+  arrivalSeconds: number,
+  currentTime: number,
+): number {
+  if (arrivalSeconds > currentTime) {
+    return arrivalSeconds - currentTime;
+  }
+  return 24 * 3600 - currentTime + arrivalSeconds;
+}
+
+function calculateWalkTime(stop: Stop, homePt: Point): number {
+  const dist = getDistanceBetweenPoints(
+    homePt.lat,
+    homePt.lon,
+    stop.stop_lat,
+    stop.stop_lon,
+  );
+  return Math.round((dist / WALKING_SPEED_KMH) * 60);
+}
+
+async function findAndDisplayBuses(): Promise<void> {
   const state = getState();
   if (!state.stopA || !state.stopB || !state.homePoint) return;
 
-  if (!caches) {
-    caches = buildCaches(tripsData as Trip[], stopTimesData as StopTime[]);
+  showCornerLoader("Поиск автобусов...");
+
+  try {
+    const routes = await apiFindRoutes(
+      state.stopA.stop_id,
+      state.stopB.stop_id,
+    );
+
+    const now = new Date();
+    const currentTime =
+      now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+    const buses: ApiBusOption[] = [];
+
+    for (const route of routes) {
+      const tripTimes = await apiGetTripTimes(route.route_id);
+      const bestTrip = findBestTripForRoute(
+        tripTimes.stopTimes,
+        state.stopA.stop_id,
+        state.stopB.stop_id,
+        currentTime,
+      );
+
+      if (bestTrip) {
+        const walkTimeMinutes = calculateWalkTime(state.stopA, state.homePoint);
+        const canMakeIt = bestTrip.waitTimeMinutes > walkTimeMinutes;
+
+        buses.push({
+          route,
+          trip_id: bestTrip.tripId,
+          departure_time: bestTrip.departureTime,
+          waitTimeMinutes: bestTrip.waitTimeMinutes,
+          walkTimeMinutes,
+          canMakeIt,
+          homeStop: state.stopA,
+          destStop: state.stopB,
+          stop_times: tripTimes.stopTimes,
+        });
+      }
+    }
+
+    buses.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes);
+
+    if (buses.length > 0) {
+      showRouteOnMap(buses[0], state.homePoint);
+    }
+
+    hideCornerLoader();
+    renderBuses(
+      buses,
+      state.stopA,
+      state.stopB,
+      state.homePoint,
+      (bus: ApiBusOption) => {
+        showRouteOnMap(bus, state.homePoint!);
+      },
+      (stopA: Stop | null, stopB: Stop | null, homePoint: Point | null) => {
+        toggleFavorite(stopA, stopB, homePoint);
+      },
+    );
+  } catch (e) {
+    console.error("Error finding buses:", e);
+    showCornerError("Ошибка поиска автобусов: " + (e as Error).message);
   }
+}
 
-  const now = new Date();
-  const currentTime =
-    now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+function findBestTripForRoute(
+  stopTimes: Array<{
+    stop_id: string;
+    arrival_time: string;
+    departure_time: string;
+  }>,
+  fromStopId: string,
+  toStopId: string,
+  currentTime: number,
+): { tripId: string; departureTime: string; waitTimeMinutes: number } | null {
+  const idxA = stopTimes.findIndex((st) => st.stop_id === fromStopId);
+  const idxB = stopTimes.findIndex((st) => st.stop_id === toStopId);
 
-  const buses = findBuses(
-    state.stopA,
-    state.stopB,
-    state.homePoint,
-    caches,
-    routesData as Route[],
-    currentTime,
-  );
+  if (idxA < 0 || idxB < 0 || idxA >= idxB) return null;
 
-  if (buses.length > 0) {
-    showRouteOnMap(buses[0], state.homePoint);
-  }
+  const departureTime = stopTimes[idxA].departure_time;
+  const departureSecs = timeToSeconds(departureTime);
+  const waitTimeSecs = calculateWaitTime(departureSecs, currentTime);
+  const waitTimeMinutes = Math.floor(waitTimeSecs / 60);
 
-  renderBuses(
-    buses,
-    state.stopA,
-    state.stopB,
-    state.homePoint,
-    (bus: BusOption) => {
-      showRouteOnMap(bus, state.homePoint!);
-    },
-    (stopA: Stop | null, stopB: Stop | null, homePoint: Point | null) => {
-      toggleFavorite(stopA, stopB, homePoint);
-    },
-  );
+  return {
+    tripId: String(idxA),
+    departureTime,
+    waitTimeMinutes,
+  };
 }
 
 function toggleFavorite(
@@ -377,12 +373,8 @@ function renderFavorites(): void {
 }
 
 function loadFavoriteRoute(fav: Favorite): void {
-  const stopA = stopsData.find((s) => s.stop_id === fav.stopA?.stop_id) as
-    | Stop
-    | undefined;
-  const stopB = stopsData.find((s) => s.stop_id === fav.stopB?.stop_id) as
-    | Stop
-    | undefined;
+  const stopA = stopsData.find((s) => s.stop_id === fav.stopA?.stop_id);
+  const stopB = stopsData.find((s) => s.stop_id === fav.stopB?.stop_id);
 
   if (!stopA || !stopB) {
     alert("Остановки из избранного больше не доступны");
@@ -393,40 +385,46 @@ function loadFavoriteRoute(fav: Favorite): void {
     setHomePointInternal(fav.homePoint.lat, fav.homePoint.lon);
   }
 
-  selectStopAByStop(stopA);
-  selectStopBByStop(stopB);
+  selectStopAByStop(stopResponseToStop(stopA));
+  selectStopBByStop(stopResponseToStop(stopB));
 }
 
 function openStopSearch(): void {
-  openSearchModal(stopsData, (stop: Stop) => {
-    const state = getState();
+  openSearchModal(
+    stopsData.map((s) => stopResponseToStop(s)),
+    (stop: Stop) => {
+      const state = getState();
 
-    if (!state.homePoint) {
-      alert("Сначала выберите домашнюю точку на карте");
-      return;
-    }
+      if (!state.homePoint) {
+        alert("Сначала выберите домашнюю точку на карте");
+        return;
+      }
 
-    if (!state.stopA) {
-      selectStopAByStop(stop);
-    } else if (!state.stopB) {
-      selectStopBByStop(stop);
-    }
-  });
+      if (!state.stopA) {
+        selectStopAByStop(stop);
+      } else if (!state.stopB) {
+        selectStopBByStop(stop);
+      }
+    },
+  );
 }
 
 function selectStopAByStop(stop: Stop): void {
   setStopA(stop);
   setStopAMarker(stop);
 
-  if (stopTimesData.length === 0) {
-    showCornerLoader("Загрузка расписания...");
-    loadSchedule().then(() => {
+  showCornerLoader("Загрузка доступных остановок...");
+  apiGetAvailableStops(stop.stop_id)
+    .then((availableStops) => {
+      availableStopIds = new Set(availableStops.map((s) => s.stop_id));
+      highlightAvailableStops(availableStopIds);
       hideCornerLoader();
-      updateUIForStepAfterStopA(stop);
+      updateUIForStep(getStep());
+    })
+    .catch((e) => {
+      console.error("Error loading available stops:", e);
+      showCornerError("Ошибка загрузки: " + (e as Error).message);
     });
-  } else {
-    updateUIForStepAfterStopA(stop);
-  }
 }
 
 function selectStopBByStop(stop: Stop): void {
@@ -449,17 +447,8 @@ function selectStopBByStop(stop: Stop): void {
 
   highlightAvailableStops(availableStopIds);
 
-  if (stopTimesData.length === 0) {
-    showCornerLoader("Загрузка расписания...");
-    loadSchedule().then(() => {
-      hideCornerLoader();
-      updateUIForStep(getStep());
-      findAndDisplayBuses();
-    });
-  } else {
-    updateUIForStep(getStep());
-    findAndDisplayBuses();
-  }
+  updateUIForStep(getStep());
+  findAndDisplayBuses();
 }
 
 function init(): void {
@@ -479,25 +468,19 @@ function init(): void {
     searchBtn.addEventListener("click", openStopSearch);
   }
 
-  loadGTFS().then(() => {
-    const state = loadFromURL(stopsData, {
-      onHomePointChange: setHomeMarker,
-      onStopAChange: setStopAMarker,
-      onStopBChange: setStopBMarker,
-    });
+  loadStops().then(() => {
+    const state = loadFromURL(
+      stopsData.map((s) => stopResponseToStop(s)),
+      {
+        onHomePointChange: setHomeMarker,
+        onStopAChange: setStopAMarker,
+        onStopBChange: setStopBMarker,
+      },
+    );
 
-    if (state.step === 4 && stopTimesData.length === 0) {
-      showCornerLoader("Загрузка расписания...");
-      loadSchedule().then(() => {
-        hideCornerLoader();
-        updateUIForStep(state.step);
-        findAndDisplayBuses();
-      });
-    } else {
-      updateUIForStep(state.step);
-      if (state.step === 4) {
-        findAndDisplayBuses();
-      }
+    updateUIForStep(state.step);
+    if (state.step === 4) {
+      findAndDisplayBuses();
     }
   });
 
@@ -512,10 +495,7 @@ function reset(): void {
   resetStore();
   clearMarkers();
   clearRoutes();
-  caches = null;
   availableStopIds = null;
-  stopTimesData = [];
-  tripsData = [];
 
   renderStops();
   renderFavorites();
@@ -530,4 +510,4 @@ if (typeof window !== "undefined") {
   window.addEventListener("DOMContentLoaded", init);
 }
 
-export { init, loadGTFS, loadSchedule, findAndDisplayBuses, reset };
+export { init, loadStops, findAndDisplayBuses, reset };

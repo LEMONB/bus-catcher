@@ -41,9 +41,11 @@ describe("GET /api/stops", () => {
     expect(res.status).toBe(404);
   });
 
-  test("returns 400 when no params provided", async () => {
+  test("returns all stops when no params provided", async () => {
     const res = await request(app).get("/api/stops");
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBe(3);
   });
 });
 

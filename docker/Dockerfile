@@ -12,6 +12,7 @@ COPY . .
 RUN npm run build
 RUN npx tsc --project tsconfig.server.build.json --outDir ./dist/server
 COPY index.html sw.js dashboard.html ./dist/
+COPY css ./dist/css/
 
 FROM node:20-alpine AS backend
 WORKDIR /app

@@ -46,9 +46,15 @@ router.get("/", (req: Request, res: Response) => {
     return res.status(404).json({ error: "No stops found nearby" });
   }
 
-  res
-    .status(400)
-    .json({ error: "Provide q (search query) or lat/lon (coordinates)" });
+  const stops = database
+    .prepare(
+      `SELECT stop_id, stop_name, stop_lat, stop_lon FROM stops
+            WHERE location_type = 0
+            ORDER BY stop_name
+            LIMIT 15000`,
+    )
+    .all();
+  return res.json(stops);
 });
 
 router.get("/:id", (req: Request, res: Response) => {

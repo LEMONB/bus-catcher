@@ -12,130 +12,198 @@ beforeEach(() => {
 });
 
 describe("findMoscowGtfsUrl", () => {
-  test("returns URL for Moscow feed by country", () => {
-    const response = {
-      data: [
-        {
-          id: "feed-1",
-          country: "Russia",
-          name: "Moscow GTFS",
-          downloads: [{ url: "https://example.com/moscow.zip", latest: true }],
-        },
-      ],
-    };
+  test("returns URL for Moscow feed by countryIso", () => {
+    const response = [
+      {
+        countryIso: "RUS",
+        countryName: "Russia",
+        feeds: [
+          {
+            feedName: "moscow-official",
+            feedGroupName: "open-data-portal-moscow",
+            derivatives: [
+              {
+                type: "processed_data",
+                path: "https://example.com/moscow.zip",
+                fileName: "improved_gtfs.zip",
+              },
+            ],
+          },
+        ],
+      },
+    ];
 
     const url = busmaps.findMoscowGtfsUrl(response);
     expect(url).toBe("https://example.com/moscow.zip");
   });
 
-  test("returns URL when country is 'ru'", () => {
-    const response = {
-      data: [
-        {
-          id: "feed-1",
-          country: "RU",
-          downloads: [{ url: "https://example.com/ru.zip" }],
-        },
-      ],
-    };
+  test("returns URL when countryIso is 'RU'", () => {
+    const response = [
+      {
+        countryIso: "RU",
+        countryName: "Russia",
+        feeds: [
+          {
+            feedName: "moscow-official",
+            derivatives: [
+              { type: "processed_data", path: "https://example.com/ru.zip" },
+            ],
+          },
+        ],
+      },
+    ];
 
     const url = busmaps.findMoscowGtfsUrl(response);
     expect(url).toBe("https://example.com/ru.zip");
   });
 
-  test("returns URL when region is 'Moscow'", () => {
-    const response = {
-      data: [
-        {
-          id: "feed-1",
-          region: "Moscow",
-          downloads: [{ url: "https://example.com/moscow-region.zip" }],
-        },
-      ],
-    };
+  test("returns URL when countryName contains 'russia'", () => {
+    const response = [
+      {
+        countryIso: "",
+        countryName: "Russian Federation",
+        feeds: [
+          {
+            feedName: "moscow-official",
+            derivatives: [
+              {
+                type: "processed_data",
+                path: "https://example.com/russia-name.zip",
+              },
+            ],
+          },
+        ],
+      },
+    ];
 
     const url = busmaps.findMoscowGtfsUrl(response);
-    expect(url).toBe("https://example.com/moscow-region.zip");
+    expect(url).toBe("https://example.com/russia-name.zip");
   });
 
-  test("returns URL when name contains 'moscow'", () => {
-    const response = {
-      data: [
-        {
-          id: "feed-1",
-          name: "Moscow Official GTFS",
-          downloads: [{ url: "https://example.com/name-match.zip" }],
-        },
-      ],
-    };
+  test("matches feed by feedName containing 'moscow'", () => {
+    const response = [
+      {
+        countryIso: "RUS",
+        countryName: "Russia",
+        feeds: [
+          {
+            feedName: "Moscow Official GTFS",
+            feedGroupName: "other",
+            derivatives: [
+              { type: "processed_data", path: "https://example.com/name.zip" },
+            ],
+          },
+        ],
+      },
+    ];
 
     const url = busmaps.findMoscowGtfsUrl(response);
-    expect(url).toBe("https://example.com/name-match.zip");
+    expect(url).toBe("https://example.com/name.zip");
+  });
+
+  test("matches feed by feedGroupName containing 'moscow'", () => {
+    const response = [
+      {
+        countryIso: "RUS",
+        countryName: "Russia",
+        feeds: [
+          {
+            feedName: "other-feed",
+            feedGroupName: "open-data-portal-moscow",
+            derivatives: [
+              { type: "processed_data", path: "https://example.com/group.zip" },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const url = busmaps.findMoscowGtfsUrl(response);
+    expect(url).toBe("https://example.com/group.zip");
+  });
+
+  test("prefers processed_data derivative over source_data", () => {
+    const response = [
+      {
+        countryIso: "RUS",
+        countryName: "Russia",
+        feeds: [
+          {
+            feedName: "moscow-official",
+            derivatives: [
+              { type: "source_data", path: "https://example.com/source.zip" },
+              {
+                type: "processed_data",
+                path: "https://example.com/processed.zip",
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const url = busmaps.findMoscowGtfsUrl(response);
+    expect(url).toBe("https://example.com/processed.zip");
+  });
+
+  test("falls back to first derivative if no processed_data", () => {
+    const response = [
+      {
+        countryIso: "RUS",
+        countryName: "Russia",
+        feeds: [
+          {
+            feedName: "moscow-official",
+            derivatives: [
+              { type: "source_data", path: "https://example.com/first.zip" },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const url = busmaps.findMoscowGtfsUrl(response);
+    expect(url).toBe("https://example.com/first.zip");
   });
 
   test("throws when Moscow feed not found", () => {
-    const response = {
-      data: [
-        {
-          id: "feed-1",
-          country: "USA",
-          name: "New York",
-          downloads: [{ url: "https://example.com/ny.zip" }],
-        },
-      ],
-    };
+    const response = [
+      {
+        countryIso: "USA",
+        countryName: "United States",
+        feeds: [
+          {
+            feedName: "new-york",
+            derivatives: [
+              { type: "processed_data", path: "https://example.com/ny.zip" },
+            ],
+          },
+        ],
+      },
+    ];
 
     expect(() => busmaps.findMoscowGtfsUrl(response)).toThrow(
       "Moscow GTFS feed not found",
     );
   });
 
-  test("returns first download if no latest flag", () => {
-    const response = {
-      data: [
-        {
-          id: "feed-1",
-          country: "Russia",
-          downloads: [{ url: "https://example.com/moscow.zip" }],
-        },
-      ],
-    };
+  test("throws when no derivatives available", () => {
+    const response = [
+      {
+        countryIso: "RUS",
+        countryName: "Russia",
+        feeds: [
+          {
+            feedName: "moscow-official",
+            derivatives: [],
+          },
+        ],
+      },
+    ];
 
-    const url = busmaps.findMoscowGtfsUrl(response);
-    expect(url).toBe("https://example.com/moscow.zip");
-  });
-
-  test("skips feed with latest: false, uses next", () => {
-    const response = {
-      data: [
-        {
-          id: "feed-1",
-          country: "Russia",
-          downloads: [
-            { url: "https://example.com/old.zip", latest: false },
-            { url: "https://example.com/new.zip", latest: true },
-          ],
-        },
-      ],
-    };
-
-    const url = busmaps.findMoscowGtfsUrl(response);
-    expect(url).toBe("https://example.com/new.zip");
-  });
-
-  test("uses feeds array when data is absent", () => {
-    const response = {
-      feeds: [
-        {
-          id: "feed-1",
-          country: "Russia",
-          downloads: [{ url: "https://example.com/feeds-array.zip" }],
-        },
-      ],
-    };
-
-    const url = busmaps.findMoscowGtfsUrl(response);
-    expect(url).toBe("https://example.com/feeds-array.zip");
+    expect(() => busmaps.findMoscowGtfsUrl(response)).toThrow(
+      "Moscow GTFS feed not found",
+    );
   });
 });
 

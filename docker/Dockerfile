@@ -11,7 +11,7 @@ RUN apk del python3 make g++
 COPY . .
 RUN npm run build
 RUN npx tsc --project tsconfig.server.build.json --outDir ./dist/server
-COPY index.html ./dist/
+COPY index.html sw.js dashboard.html ./dist/
 
 FROM node:20-alpine AS backend
 WORKDIR /app

@@ -7,6 +7,7 @@ services:
       - PORT=3001
       - DATA_DIR=/app/data
       - ADMIN_TOKEN=${ADMIN_TOKEN:-buscatcher-admin}
+      - BUSMAPS_API_KEY=${BUSMAPS_API_KEY}
     volumes:
       - gtfs-data:/app/data
     networks:

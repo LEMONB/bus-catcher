@@ -18,9 +18,9 @@ WORKDIR /app
 
 COPY --from=build /app/node_modules ./node_modules
 COPY server/ ./server/
-COPY tsconfig.server.json ./
+COPY tsconfig.server.build.json ./
 
-RUN npx tsc --project tsconfig.server.json --outDir ./dist/server
+RUN npx tsc --project tsconfig.server.build.json --outDir ./dist/server
 
 RUN mkdir -p /app/data
 

@@ -4,9 +4,7 @@ import path from "node:path";
 import AdmZip from "adm-zip";
 import crypto from "node:crypto";
 import { initDb, getDb, setGtfsVersion } from "./db.js";
-
-const GTFS_URL =
-  "https://s3.transitpdf.com/files/uran/improved-gtfs-moscow-official.zip";
+import { getCachedGtfsUrl } from "./busmaps.js";
 
 export interface ImportProgress {
   stage: string;
@@ -51,11 +49,11 @@ function parseCSV(text: string): Record<string, string>[] {
     .map((line) => parseCSVLine(line, headers));
 }
 
-function downloadZip(destPath: string): Promise<void> {
+function downloadZip(destPath: string, url: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    function followRedirect(url: string) {
+    function followRedirect(currentUrl: string) {
       https
-        .get(url, (response) => {
+        .get(currentUrl, (response) => {
           if (response.statusCode === 301 || response.statusCode === 302) {
             followRedirect(response.headers.location!);
             return;
@@ -76,7 +74,7 @@ function downloadZip(destPath: string): Promise<void> {
         })
         .on("error", reject);
     }
-    followRedirect(GTFS_URL);
+    followRedirect(url);
   });
 }
 
@@ -283,8 +281,19 @@ export async function importGtfs(
   const gtfsDir = path.join(tmpDir, "gtfs");
 
   try {
+    const apiKey = process.env.BUSMAPS_API_KEY;
+    if (!apiKey) {
+      throw new Error("BUSMAPS_API_KEY environment variable is not set");
+    }
+
+    onProgress({
+      stage: "fetching_url",
+      message: "Fetching GTFS URL from BusMaps API...",
+    });
+    const gtfsUrl = await getCachedGtfsUrl(apiKey);
+
     onProgress({ stage: "downloading", message: "Downloading GTFS data..." });
-    await downloadZip(zipPath);
+    await downloadZip(zipPath, gtfsUrl);
 
     const fileHash = computeFileHash(zipPath);
 

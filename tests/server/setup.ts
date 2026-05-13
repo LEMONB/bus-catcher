@@ -1,9 +1,15 @@
+import fs from "node:fs";
 import Database from "better-sqlite3";
 
 let testDb: Database.Database;
 
 beforeAll(async () => {
   process.env.DATA_DIR = "./tmp/test-data";
+
+  const dataDir = "./tmp/test-data";
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
 
   const dbModule = await import("../../server/db.js");
   dbModule.initDb();

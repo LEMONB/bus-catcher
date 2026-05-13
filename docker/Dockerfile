@@ -10,17 +10,14 @@ RUN apk del python3 make g++
 
 COPY . .
 RUN npm run build
+RUN npx tsc --project tsconfig.server.build.json --outDir ./dist/server
 COPY index.html ./dist/
-RUN npm run typecheck:server
 
 FROM node:20-alpine AS backend
 WORKDIR /app
 
 COPY --from=build /app/node_modules ./node_modules
-COPY server/ ./server/
-COPY tsconfig.server.build.json ./
-
-RUN npx tsc --project tsconfig.server.build.json --outDir ./dist/server
+COPY --from=build /app/dist/server ./dist/server
 
 RUN mkdir -p /app/data
 

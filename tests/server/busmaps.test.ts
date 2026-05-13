@@ -277,3 +277,47 @@ describe("clearCache", () => {
     expect(mockFs.unlinkSync).not.toHaveBeenCalled();
   });
 });
+
+describe("fetchGtfsUrl", () => {
+  test("adds Bearer prefix if missing", async () => {
+    const mockRequest = vi.fn().mockResolvedValue([
+      {
+        countryIso: "RUS",
+        feeds: [
+          {
+            feedName: "moscow",
+            derivatives: [{ path: "https://example.com/m.zip" }],
+          },
+        ],
+      },
+    ]);
+
+    await busmaps.fetchGtfsUrl("test-key-123", mockRequest);
+
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ "capi-key": "Bearer test-key-123" }),
+    );
+  });
+
+  test("does not double Bearer prefix", async () => {
+    const mockRequest = vi.fn().mockResolvedValue([
+      {
+        countryIso: "RUS",
+        feeds: [
+          {
+            feedName: "moscow",
+            derivatives: [{ path: "https://example.com/m.zip" }],
+          },
+        ],
+      },
+    ]);
+
+    await busmaps.fetchGtfsUrl("Bearer test-key-123", mockRequest);
+
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ "capi-key": "Bearer test-key-123" }),
+    );
+  });
+});

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'buscatcher-v2';
-const TILE_CACHE_NAME = 'buscatcher-tiles-v2';
+const CACHE_NAME = 'buscatcher-v3';
+const TILE_CACHE_NAME = 'buscatcher-tiles-v3';
 
 const TILE_URL_PATTERN = /tile\.openstreetmap\.org\/(\d+)\/(\d+)\/(\d+)\.png/;
 

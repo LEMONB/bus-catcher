@@ -11,23 +11,29 @@ interface UrlCache {
   fetchedAt: string;
 }
 
-interface BusMapsFeed {
-  id: string;
-  country?: string;
-  region?: string;
-  name?: string;
-  downloads?: Array<{
-    url: string;
-    type?: string;
-    latest?: boolean;
-  }>;
+interface BusMapsDerivative {
+  type?: string;
+  path?: string;
+  fileName?: string;
 }
 
-interface BusMapsResponse {
-  status?: string;
-  data?: BusMapsFeed[];
+interface BusMapsFeed {
+  feedId?: number;
+  feedName?: string;
+  feedGroupId?: number;
+  feedGroupName?: string;
+  derivatives?: BusMapsDerivative[];
+}
+
+interface BusMapsCountry {
+  countryUrl?: string;
+  countryRegion?: string;
+  countryName?: string;
+  countryIso?: string;
   feeds?: BusMapsFeed[];
 }
+
+type BusMapsResponse = BusMapsCountry[];
 
 export function requestJson(
   url: string,
@@ -67,30 +73,44 @@ export function requestJson(
 }
 
 export function findMoscowGtfsUrl(response: unknown): string {
-  const parsed = response as BusMapsResponse;
-  const feeds = parsed.data ?? parsed.feeds ?? [];
+  const countries = response as BusMapsResponse;
+  if (!Array.isArray(countries)) {
+    const snippet = JSON.stringify(response).slice(0, 200);
+    throw new Error(
+      `Unexpected BusMaps API response (expected array): ${snippet}`,
+    );
+  }
 
-  for (const feed of feeds) {
-    const country = (feed.country ?? "").toLowerCase();
-    const region = (feed.region ?? "").toLowerCase();
-    const name = (feed.name ?? "").toLowerCase();
+  for (const country of countries) {
+    const countryIso = (country.countryIso ?? "").toLowerCase();
+    const countryName = (country.countryName ?? "").toLowerCase();
 
     if (
-      country.includes("russia") ||
-      country.includes("ru") ||
-      region.includes("moscow") ||
-      region.includes("moskva") ||
-      name.includes("moscow") ||
-      name.includes("moskva")
+      countryIso === "rus" ||
+      countryIso === "ru" ||
+      countryName.includes("russia")
     ) {
-      const downloads = feed.downloads ?? [];
-      for (const dl of downloads) {
-        if (dl.url && dl.latest !== false) {
-          return dl.url;
+      const feeds = country.feeds ?? [];
+      for (const feed of feeds) {
+        const feedName = (feed.feedName ?? "").toLowerCase();
+        const feedGroupName = (feed.feedGroupName ?? "").toLowerCase();
+
+        if (
+          feedName.includes("moscow") ||
+          feedName.includes("moskva") ||
+          feedGroupName.includes("moscow") ||
+          feedGroupName.includes("moskva")
+        ) {
+          const derivatives = feed.derivatives ?? [];
+          for (const d of derivatives) {
+            if (d.type === "processed_data" && d.path) {
+              return d.path;
+            }
+          }
+          if (derivatives.length > 0 && derivatives[0].path) {
+            return derivatives[0].path;
+          }
         }
-      }
-      if (downloads.length > 0 && downloads[0].url) {
-        return downloads[0].url;
       }
     }
   }
@@ -109,7 +129,8 @@ export async function fetchGtfsUrl(apiKey: string): Promise<string> {
 function readCache(): UrlCache | null {
   try {
     if (!fs.existsSync(CACHE_FILE)) return null;
-    const raw = fs.readFileSync(CACHE_FILE, "utf8");
+    let raw = fs.readFileSync(CACHE_FILE, "utf8");
+    raw = raw.replace(/^\uFEFF/, ""); // strip BOM
     return JSON.parse(raw) as UrlCache;
   } catch {
     return null;
